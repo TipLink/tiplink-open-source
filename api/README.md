@@ -34,3 +34,4 @@ TipLink.fromLink(tp).then(tiplink => {
   return tiplink;
 });
 ```
+**Note:** If adding as a local path or GitHub URL, run `npm install` and `npm run build` manually in your build processes.
