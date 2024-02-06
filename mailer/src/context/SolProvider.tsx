@@ -18,11 +18,11 @@ import { TipLinkWalletAdapter } from "@tiplink/wallet-adapter";
 import { TipLinkWalletAutoConnect } from "@tiplink/wallet-adapter-react-ui";
 
 // Default styles that can be overridden by your app
-require("@solana/wallet-adapter-react-ui/styles.css");
+require("@tiplink/wallet-adapter-react-ui/styles.css");
 
 const ReactUIWalletModalProviderDynamic = dynamic(
   async () =>
-    (await import("@solana/wallet-adapter-react-ui")).WalletModalProvider,
+    (await import("@tiplink/wallet-adapter-react-ui")).WalletModalProvider,
   { ssr: false },
 );
 
@@ -60,7 +60,7 @@ export default function SolProvider({
        * instantiate its legacy wallet adapter here. Common legacy adapters can be found
        * in the npm package `@solana/wallet-adapter-wallets`.
        */
-      new TipLinkWalletAdapter(),
+      new TipLinkWalletAdapter("TipLink Mailer", { buildEnv: "development"}),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [network],
@@ -72,10 +72,7 @@ export default function SolProvider({
     <SolContext.Provider value={val}>
       <TipLinkWalletAutoConnect
         isReady
-        query={{
-          tipLinkAutoConnectPublicKey:
-            searchParams.get("tipLinkAutoConnectPublicKey") || undefined,
-        }}
+        query={searchParams}
       >
         <ConnectionProvider endpoint={endpoint}>
           <WalletProvider wallets={wallets} autoConnect>
