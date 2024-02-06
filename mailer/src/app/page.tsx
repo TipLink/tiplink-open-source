@@ -31,7 +31,7 @@ import {
 
 const WalletMultiButtonDynamic = dynamic(
   async () =>
-    (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
+    (await import("@tiplink/wallet-adapter-react-ui")).WalletMultiButton,
   { ssr: false },
 );
 
