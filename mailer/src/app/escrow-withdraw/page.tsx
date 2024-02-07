@@ -92,9 +92,7 @@ export default function EscrowWithdraw(): JSX.Element {
           );
           await sendWalletTx(tx);
         }
-        // We could use this GET to confirm the escrow has been withdrawn...
-        // const s = await EscrowTipLink.get(connection, pda);
-        // ... but it's a race condition so we'll just set to undefined
+
         // TODO: Better method of determining withdrawn / non-existent escrows
         setEscrowTiplink(undefined);
         setIsSuccess(true);
