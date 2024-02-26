@@ -50,6 +50,7 @@ export default function Home(): JSX.Element {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isFailure, setIsFailure] = useState(false);
   const [statusUrl, setStatusUrl] = useState("");
+  const [statusLabel, setStatusLabel] = useState("");
 
   const sendTipLink = useCallback(async (): Promise<string> => {
     if (!publicKey) {
@@ -75,13 +76,14 @@ export default function Home(): JSX.Element {
     // DEBUG
     console.log("TipLink URL: ", tipLink.url.toString());
     setStatusUrl(tipLink.url.toString());
+    setStatusLabel("TipLink");
 
     // Mail
-    mail(
+    await mail(
       tipLink,
       toEmail,
-      replyEmail !== "" ? replyEmail : undefined,
       toName !== "" ? toName : undefined,
+      replyEmail !== "" ? replyEmail : undefined,
       replyName !== "" ? replyName : undefined,
     );
 
@@ -152,6 +154,7 @@ export default function Home(): JSX.Element {
     // DEBUG
     console.log("TipLink URL: ", tipLink.url.toString());
     setStatusUrl(tipLink.url.toString());
+    setStatusLabel("TipLink");
 
     // Mail
     await mail(tipLink, toEmail, toName, replyEmail, replyName);
@@ -185,14 +188,15 @@ export default function Home(): JSX.Element {
     const sig = await sendWalletTx(tx, 40000);
 
     // DEBUG
-    console.log("Deposit URL: ", escrowTipLink.depositUrl.toString());
+    console.log("Depositor URL: ", escrowTipLink.depositUrl.toString());
     setStatusUrl(escrowTipLink.depositUrl.toString());
+    setStatusLabel("Depositor URL");
 
     // Mail
     await mailEscrow(
       escrowTipLink,
-      replyEmail !== "" ? replyEmail : undefined,
       toName !== "" ? toName : undefined,
+      replyEmail !== "" ? replyEmail : undefined,
       replyName !== "" ? replyName : undefined,
     );
 
@@ -229,14 +233,15 @@ export default function Home(): JSX.Element {
     const sig = await sendWalletTx(tx, 90000);
 
     // DEBUG
-    console.log("Deposit URL: ", escrowTipLink.depositUrl.toString());
+    console.log("Depositor URL: ", escrowTipLink.depositUrl.toString());
     setStatusUrl(escrowTipLink.depositUrl.toString());
+    setStatusLabel("Depositor URL");
 
     // Mail
     await mailEscrow(
       escrowTipLink,
-      replyEmail !== "" ? replyEmail : undefined,
       toName !== "" ? toName : undefined,
+      replyEmail !== "" ? replyEmail : undefined,
       replyName !== "" ? replyName : undefined,
     );
 
@@ -260,6 +265,7 @@ export default function Home(): JSX.Element {
       setIsSuccess(false);
       setIsFailure(false);
       setStatusUrl("");
+      setStatusLabel("");
 
       let sig = "";
 
@@ -274,13 +280,12 @@ export default function Home(): JSX.Element {
           sig = await sendEscrowUsdcTipLink();
         }
 
-        const parsedTx = await connection.getParsedTransaction(sig);
-        console.log(
-          "Compute units consumed:",
-          parsedTx?.meta?.computeUnitsConsumed,
-        );
-
         setIsSuccess(true);
+
+        // DEBUG
+        connection.getParsedTransaction(sig).then((parsed) => {
+          console.log("Parsed Tx:", parsed);
+        });
       } catch (err) {
         console.error("Error mailing TipLink", err);
         setIsFailure(true);
@@ -302,7 +307,7 @@ export default function Home(): JSX.Element {
   const msgUrl =
     statusUrl === "" ? null : (
       <a className="ml-2 underline" href={statusUrl} target="_blank">
-        {" TipLink"}
+        {statusLabel}
       </a>
     );
 

@@ -2,7 +2,9 @@ import { PublicKey } from '@solana/web3.js';
 
 import { EscrowTipLink, TipLink } from '.';
 
-const ENCLAVE_ENDPOINT = 'https://mailer.tiplink.io';
+const ENCLAVE_ENDPOINT =
+  process.env.NEXT_PUBLIC_ENCLAVE_ENDPOINT_OVERRIDE ||
+  'https://mailer.tiplink.io';
 
 /**
  * Asynchronously calls secure enclave to create a TipLink, store it with an associated email, and return its public key.
@@ -134,6 +136,7 @@ export async function mailEscrow(
     replyName,
     depositorUrl: escrowTipLink.depositUrl.toString(),
     tiplinkPublicKey: escrowTipLink.tiplinkPublicKey.toString(),
+    receiverUrlOverride: process.env.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE,
   };
   const res = await fetch(url, {
     method: 'POST',
