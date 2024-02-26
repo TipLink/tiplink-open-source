@@ -136,7 +136,8 @@ export async function mailEscrow(
     replyName,
     depositorUrl: escrowTipLink.depositUrl.toString(),
     tiplinkPublicKey: escrowTipLink.tiplinkPublicKey.toString(),
-    receiverUrlOverride: process.env.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE,
+    receiverUrlOverride:
+      process.env.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE || undefined,
   };
   const res = await fetch(url, {
     method: 'POST',
