@@ -11,4 +11,4 @@ export const TREASURY_PUBLIC_KEY = new PublicKey(
 export const PDA_SEED = 'escrow';
 
 export const DEPOSIT_URL_BASE =
-  'https://tiplink-mailer.onrender.com/escrow-withdraw'; // TEMP
+  'https://tiplink-mailer.vercel.app/depositor-url'; // TEMP
