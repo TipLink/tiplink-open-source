@@ -36,7 +36,9 @@ export class EscrowTipLink {
       );
     }
 
-    const url = new URL(DEPOSIT_URL_BASE);
+    const urlStr =
+      process.env.NEXT_PUBLIC_ESCROW_DEPOSITOR_URL_OVERRIDE || DEPOSIT_URL_BASE;
+    const url = new URL(urlStr);
     url.searchParams.append('pda', this.pda.toString());
 
     return url;
