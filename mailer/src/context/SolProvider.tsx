@@ -60,7 +60,10 @@ export default function SolProvider({
        * instantiate its legacy wallet adapter here. Common legacy adapters can be found
        * in the npm package `@solana/wallet-adapter-wallets`.
        */
-      new TipLinkWalletAdapter("TipLink Mailer", { buildEnv: "development"}),
+      new TipLinkWalletAdapter("TipLink Mailer", {
+        buildEnv: "development",
+        theme: "light",
+      }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [network],
@@ -70,10 +73,7 @@ export default function SolProvider({
 
   return (
     <SolContext.Provider value={val}>
-      <TipLinkWalletAutoConnect
-        isReady
-        query={searchParams}
-      >
+      <TipLinkWalletAutoConnect isReady query={searchParams}>
         <ConnectionProvider endpoint={endpoint}>
           <WalletProvider wallets={wallets} autoConnect>
             <ReactUIWalletModalProviderDynamic>
