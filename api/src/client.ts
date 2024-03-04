@@ -1,9 +1,13 @@
 import { nanoid } from "nanoid";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
 import { TipLink } from './index';
 import { generateRandomSalt, generateKey, encrypt, encryptPublicKey, decrypt } from './crypto';
 
 export { decrypt };
+
+export const ON_CHAIN_NAME_CHAR_LIMIT = 32;
+export const ON_CHAIN_SYMBOL_CHAR_LIMIT = 10;
 
 const URL_BASE = "https://tiplink.io";
 // const URL_BASE = "http://localhost:3000";
@@ -24,25 +28,31 @@ export class TipLinkClient {
   id?: number;
 
   campaigns: CampaignActions;
+  mints: MintActions;
 
   public constructor(apiKey: string, version=1) {
     this.apiKey = apiKey;
     this.version = version;
     this.campaigns = new CampaignActions({client: this});
+    this.mints = new MintActions({client: this});
   }
 
   public static async init(apiKey: string, version=1): Promise<TipLinkClient> {
     const client = new TipLinkClient(apiKey, version);
 
-    const apiKeyRes = await client.fetch("api_key");
-    client.id = apiKeyRes['account']['id'];
-    client.publicKey = apiKeyRes['account']['public_key'];
+    try {
+      const apiKeyRes = await client.fetch("api_key");
+      client.id = apiKeyRes['account']['id'];
+      client.publicKey = apiKeyRes['account']['public_key'];
+    } catch (err) {
+      throw Error("Api_key error: retriving account public_key encryption info");
+    }
 
     return client;
   }
 
   // TODO type return?
-  public async fetch(endpoint: string, args: Record<string, ArgT> | null = null, body: Record<string, unknown> | Array<Record<string, unknown> > | null = null, verb="GET") {
+  public async fetch(endpoint: string, args: Record<string, ArgT> | null = null, body: Record<string, unknown> | Array<Record<string, unknown>> | FormData | null = null, verb="GET") {
     const url = new URL(endpoint, `${API_URL_BASE}/v${this.version}/`);
 
     if (args !== null) {
@@ -54,13 +64,17 @@ export class TipLinkClient {
     const params = {
       method: verb,
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
       },
     } as Record<string, unknown>;
 
     if (body !== null) {
-      params.body = JSON.stringify(body);
+      if (body instanceof FormData) {
+        params.body = body;
+      } else { // json body
+        (params.headers as Record<string, string>)["Content-Type"] = "application/json";
+        params.body = JSON.stringify(body);
+      }
     }
 
     try {
@@ -69,7 +83,7 @@ export class TipLinkClient {
     } catch (err) {
       console.error(err);
       // TODO how should we handle errors
-      throw err;
+      throw Error(`Api Fetch Error: ${verb} ${endpoint}`);
     }
   }
 }
@@ -183,7 +197,7 @@ class CampaignActions extends TipLinkApi {
 
     const campaign = new Campaign({client: this.client, id: res['id'], name: res['name'], description: res['description'], imageUrl: res['image_url'], active: res['active'],});
 
-    if (typeof(this.client.publicKey) == "undefined") {
+    if (typeof(this.client.publicKey) === "undefined") {
       // TODO should we handle this differently
       throw "Unable to do server handshake with encryption key";
     } else {
@@ -581,4 +595,332 @@ export class Dispenser extends TipLinkApi {
   }
 }
 
+interface MintActionsConstructor {
+  client: TipLinkClient;
+}
 
+interface MintConstructorParams {
+  client: TipLinkClient;
+
+  id: number;
+  campaign_id: number;
+  campaignName: string;
+
+  imageUrl: string;
+  externalUrl: string;
+
+  mintName: string;
+  symbol: string;
+  mintDescription: string;
+  mintLimit: number;
+  attributes: Record<string, string>[];
+
+  creatorPublicKey: PublicKey;
+  collectionId: string;
+  treeAddress: string;
+  jsonUri: string;
+  collectionUri: string;
+  sellerFeeBasisPoints: number;
+
+  primaryUrlSlug: string;
+  rotatingUrlSlug: string;
+  useRotating: boolean;
+
+  rotatingTimeInterval: number;
+  totpWindow: number;
+  userClaimLimit: number;
+  royaltiesDestination?: PublicKey | null;
+}
+
+interface MintCreateParams {
+  campaignName: string;
+  campaignDescription: string;
+
+  mintName: string;
+  mintDescription: string;
+  mintImageUrl: string;
+  symbol: string;
+  sellerFeeBasisPoints: number;
+  externalUrl: string;
+  existingCollectionId: string;
+  mintLimit: number;
+  creatorPublicKey: PublicKey;
+  royalties: number;
+  royaltiesDestination: PublicKey;
+  attributes: Record<string, string>;
+
+  feeTransactionHash: string;
+}
+
+interface FeeResponse {
+  publicKey: PublicKey;
+  feeLamports: number;
+}
+
+class MintActions extends TipLinkApi {
+  public constructor(params: MintActionsConstructor) {
+    super(params.client);
+  }
+
+  private transformAttributes(attributes: Record<string, string>) {
+    const newMintAttributes: Record<string, string>[] = [];
+    if (Object.keys(attributes).length > 0) {
+      Object.keys(attributes).forEach((key) => {
+        newMintAttributes.push({"trait_type": key, "value": attributes[key]});
+      });
+    }
+    return newMintAttributes;
+  }
+
+  private isValidUrl(urlString: string) {
+    const url = new URL(urlString);
+    return url.protocol === "https:" || url.protocol === "http:";
+  }
+
+  public async getFees(params: MintCreateParams): Promise<FeeResponse> {
+    const costRequest = {
+      metadata: {
+        name: params.mintName,
+        symbol: params.symbol,
+        creator: params.creatorPublicKey.toBase58(),
+        royalties: Number(params.royalties),
+        description: params.mintDescription,
+        attributes: this.transformAttributes(params.attributes),
+        externalUrl: params.externalUrl,
+        image: params.mintImageUrl,
+        mimeType: "image/png",
+      },
+      imageSize: 0, // TODO determine what to do with images here
+      supply: params.mintLimit,
+      collectionMint: !!params.existingCollectionId,
+    }
+
+    const costData = (await this.client.fetch(
+      "/api/dynamic_mint/calculate_campaign_costs",
+      null,
+      costRequest,
+      "POST"
+    ) as Record<string, any>)[0]; // TODO type this response?
+
+    let total = 0;
+    Object.keys(costData).forEach(costKey => total += (costData[costKey].cost || 0));
+
+    const destination = new PublicKey(costData.publicKeyToFund);
+
+    return {
+      publicKey: destination,
+      feeLamports: total * LAMPORTS_PER_SOL,
+    };
+  }
+
+  public async create(params: MintCreateParams): Promise<Mint> {
+    const formData = new FormData();
+
+    const index = 0;
+
+    if (params.mintName.length > ON_CHAIN_NAME_CHAR_LIMIT) {
+      throw Error("Mint Name too Long");
+    } else if (params.symbol.length > ON_CHAIN_SYMBOL_CHAR_LIMIT) {
+      throw Error("Mint Symbol too Long");
+    } else if (params.royalties > 50 || params.royalties < 0) {
+      throw Error("Royalties must be between 0 and 50%");
+    } else if (params.externalUrl !== "" && !this.isValidUrl(params.externalUrl)) {
+      throw Error("Invalid external url");
+    }
+
+    if (!params.feeTransactionHash) {
+      throw Error("Missing feeTransactionHash");
+    }
+
+    if (params.campaignName) {
+      formData.append(`mint[${index}][campaignName]`, params.campaignName);
+    }
+    if (params.campaignDescription) {
+      formData.append(`mint[${index}][campaignDescription]`, params.campaignDescription);
+    }
+
+    if (params.mintName) {
+      formData.append(`mint[${index}][name]`, params.mintName);
+    }
+    if (params.symbol) {
+      formData.append(`mint[${index}][symbol]`, params.symbol);
+    }
+    if (params.mintDescription) {
+      formData.append(`mint[${index}][description]`, params.mintDescription);
+    }
+    if (params.mintImageUrl) {
+      formData.append(`mint[${index}][imageUrl]`, params.mintImageUrl);
+    }
+    if (params.mintImageUrl) {
+      formData.append(`mint[${index}][archiveImageUrl]`, params.mintImageUrl);
+    }
+    if (params.sellerFeeBasisPoints) {
+      formData.append(`mint[${index}][sellerFeeBasisPoints]`, JSON.stringify(Number(params.sellerFeeBasisPoints) * 100));
+    }
+    if (params.externalUrl) {
+      formData.append(`mint[${index}][externalUrl]`, params.externalUrl);
+    }
+    if (params.existingCollectionId) {
+      formData.append(`mint[${index}][collectionMint]`, params.existingCollectionId);
+    }
+    if (params.mintLimit.toString()) {
+      formData.append(`mint[${index}][initialLimit]`, params.mintLimit.toString());
+    }
+
+    if (params.creatorPublicKey) {
+      formData.append(`mint[${index}][creator]`, params.creatorPublicKey.toBase58() || '');
+    }
+    if (params.royaltiesDestination) {
+      formData.append(`mint[${index}][royaltiesDestination]`, params.royaltiesDestination.toBase58() || '');
+    }
+
+    if (params.attributes) {
+      formData.append(`mint[${index}][attributes]`, JSON.stringify(this.transformAttributes(params.attributes)));
+    }
+
+    if (formData.get(`mint[${index}][campaignName]`) === null) {
+      throw Error("campaignName is required");
+    } else if (formData.get(`mint[${index}][name]`) === null) {
+      throw Error("mintName is required");
+    } else if (formData.get(`mint[${index}][archiveImageUrl]`) === null) {
+      throw Error("imageUrl is required"); // TODO upload image too?
+    } else if (formData.get(`mint[${index}][symbol]`) === null) {
+      throw Error("symbol is required");
+    } else if (formData.get(`mint[${index}][initialLimit]`) === null) {
+      throw Error("mintLimit is required");
+    }
+
+    const stageResponse = (await this.client.fetch(
+      "/api/dynamic_mint/stage_mint_campaign",
+      null,
+      formData,
+      "POST",
+    ) as Record<string, unknown>[])[0];
+
+    const feeTransactionHash = params.feeTransactionHash;
+
+    const createResponse = (await this.client.fetch(
+      "/api/dynamic_mint/create_mint_campaign",
+      null,
+      {
+        campaignIds: [stageResponse.campaign_id],
+        transactions: [feeTransactionHash],
+      },
+      "POST"
+    ) as Record<string, any>[])[0]; // TODO type this response
+
+    const mintParams: MintConstructorParams = {
+      client: this.client,
+      id: Number(createResponse['id']),
+      campaign_id: createResponse['campaign_id'],
+      mintName: createResponse['name'],
+      symbol: createResponse['symbol'],
+      mintDescription: createResponse['description'],
+      campaignName: params.campaignName,
+      collectionId: createResponse["collection_mint"],
+      treeAddress: createResponse["tree_address"],
+      jsonUri: createResponse["json_uri"],
+      creatorPublicKey: new PublicKey(createResponse["creator"]),
+      attributes: createResponse["attributes"],
+      mintLimit: Number(createResponse["mint_limit"]),
+      collectionUri: createResponse["collection_uri"],
+      imageUrl: createResponse["image"],
+      externalUrl: createResponse["external_url"],
+      sellerFeeBasisPoints: createResponse["seller_fee_basis_points"],
+      primaryUrlSlug: createResponse["primary_url_slug"],
+      rotatingUrlSlug: createResponse["rotating_url_slug"],
+      useRotating: createResponse["use_rotating"],
+      // rotating_seed_key: createResponse["rotating_seed_key"],
+      rotatingTimeInterval: Number(createResponse["rotating_time_interval"]),
+      totpWindow: createResponse["totp_window"],
+      userClaimLimit: createResponse["user_claim_limit"],
+    };
+
+    if (createResponse.hasOwn("royalties_destination") && typeof createResponse["royalties_destination"] === 'string') {
+      mintParams["royaltiesDestination"] = new PublicKey(createResponse["royalties_destination"]);
+    }
+
+    const mint = new Mint(mintParams);
+
+    return mint;
+  }
+
+}
+
+export class Mint extends TipLinkApi {
+  id: number;
+  campaign_id: number;
+  campaignName: string;
+
+  imageUrl: string;
+  externalUrl: string;
+
+  mintName: string;
+  symbol: string;
+  mintDescription: string;
+  mintLimit: number;
+  attributes: Record<string, string>[];
+
+  creatorPublicKey: PublicKey;
+  collectionId: string;
+  treeAddress: string;
+  jsonUri: string;
+  collectionUri: string;
+  sellerFeeBasisPoints: number;
+
+  primaryUrlSlug: string;
+  rotatingUrlSlug: string;
+  useRotating: boolean;
+
+  rotatingTimeInterval: number;
+  totpWindow: number;
+  userClaimLimit: number;
+  royaltiesDestination?: PublicKey | null;
+
+  public constructor(
+    params: MintConstructorParams
+  ) {
+    super(params.client);
+    this.id = params.id;
+    this.campaign_id = params.campaign_id;
+
+    this.mintName = params.mintName;
+    this.mintDescription = params.mintDescription;
+    this.campaignName = params.campaignName;
+
+    this.imageUrl = params.imageUrl;
+    this.externalUrl = params.externalUrl;
+
+    this.symbol = params.symbol;
+    this.mintDescription = params.mintDescription;
+    this.mintLimit = params.mintLimit;
+    this.attributes = params.attributes;
+
+    this.creatorPublicKey = params.creatorPublicKey;
+    this.collectionId = params.collectionId;
+    this.treeAddress = params.treeAddress;
+    this.jsonUri = params.jsonUri;
+    this.collectionUri = params.collectionUri;
+    this.sellerFeeBasisPoints = params.sellerFeeBasisPoints;
+
+    this.primaryUrlSlug = params.primaryUrlSlug;
+    this.rotatingUrlSlug = params.rotatingUrlSlug;
+    this.useRotating = params.useRotating;
+
+    this.rotatingTimeInterval = params.rotatingTimeInterval;
+    this.totpWindow = params.totpWindow;
+    this.userClaimLimit = params.userClaimLimit;
+    this.royaltiesDestination = params.royaltiesDestination;
+  }
+
+  // TODO how should we handle rotating urls
+  public getMintUrl(): URL {
+    return new URL(`${URL_BASE}/m/${this.primaryUrlSlug}`);
+  }
+
+  public async getAnalytics(): Promise<AnalyticsSummary> {
+    // TODO clean up response here and type
+    const analyticsRes = await this.client.fetch(`campaigns/${this.campaign_id}/analytics_summary`);
+    return analyticsRes;
+  }
+}
