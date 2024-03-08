@@ -60,9 +60,12 @@ export default function SolProvider({
        * instantiate its legacy wallet adapter here. Common legacy adapters can be found
        * in the npm package `@solana/wallet-adapter-wallets`.
        */
-      new TipLinkWalletAdapter("TipLink Mailer", {
-        buildEnv: "development",
+      new TipLinkWalletAdapter({
         theme: "light",
+        title: "TipLink Mailer",
+        clientId:
+          process.env.NEXT_PUBLIC_TIPLINK_WALLET_ADAPTER_CLIENT_ID || "",
+        buildEnv: "development",
       }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps

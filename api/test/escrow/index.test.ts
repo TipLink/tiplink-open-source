@@ -1,5 +1,6 @@
 // NOTE: Withdraw with emailed TipLink requires manual testing.
 
+import 'dotenv/config';
 import {
   PublicKey,
   sendAndConfirmTransaction,
@@ -36,6 +37,7 @@ onchainTest('Creates lamport EscrowTipLink', async () => {
   const depositor = (await getDepositorKeypair()).publicKey;
 
   lamportEscrowTipLink = await EscrowTipLink.create(
+    process.env.MAILER_API_KEY as string,
     amount,
     recipient,
     depositor
@@ -76,6 +78,7 @@ onchainTest('Gets lamport EscrowTipLink', async () => {
   }
 
   const retrievedEscrowTipLink = await EscrowTipLink.get(
+    process.env.MAILER_API_KEY as string,
     connection,
     lamportPda
   );
@@ -108,6 +111,7 @@ onchainTest(
     // Check
     expect(depositorEndBalance).toBeGreaterThan(depositorStartBalance); // Exact amounts are unit tested in the program repo
     const retrievedEscrowTipLink = await EscrowTipLink.get(
+      process.env.MAILER_API_KEY as string,
       connection,
       lamportPda
     );
@@ -124,6 +128,7 @@ onchainTest('Creates SPL EscrowTipLink', async () => {
   const depositor = (await getDepositorKeypair()).publicKey;
 
   splEscrowTipLink = await EscrowTipLink.create(
+    process.env.MAILER_API_KEY as string,
     amount,
     recipient,
     depositor,
@@ -168,7 +173,11 @@ onchainTest('Gets SPL EscrowTipLink', async () => {
     );
   }
 
-  const retrievedEscrowTipLink = await EscrowTipLink.get(connection, splPda);
+  const retrievedEscrowTipLink = await EscrowTipLink.get(
+    process.env.MAILER_API_KEY as string,
+    connection,
+    splPda
+  );
 
   // Check
   expect(retrievedEscrowTipLink).toStrictEqual(splEscrowTipLink);
@@ -204,7 +213,11 @@ onchainTest(
     expect(parseInt(depositorAtaEndBalance.value.amount)).toBeGreaterThan(
       parseInt(depositorAtaStartBalance.value.amount)
     ); // Exact amounts are unit tested in the program repo
-    const retrievedEscrowTipLink = await EscrowTipLink.get(connection, splPda);
+    const retrievedEscrowTipLink = await EscrowTipLink.get(
+      process.env.MAILER_API_KEY as string,
+      connection,
+      splPda
+    );
     expect(retrievedEscrowTipLink).toBeUndefined();
   },
   50000

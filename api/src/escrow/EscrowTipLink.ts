@@ -64,12 +64,13 @@ export class EscrowTipLink {
    * Creates an EscrowTipLink instance to be deposited.
    */
   static async create(
+    apiKey: string,
     amount: number,
     toEmail: string,
     depositor: PublicKey,
     mint?: Mint
   ): Promise<EscrowTipLink> {
-    const tiplink = await createGeneratedTipLink(toEmail);
+    const tiplink = await createGeneratedTipLink(apiKey, toEmail);
     return new EscrowTipLink(
       toEmail,
       tiplink,
@@ -84,6 +85,7 @@ export class EscrowTipLink {
    * Creates an EscrowTipLink instance from a deposited, on-chain escrow.
    */
   static async get(
+    apiKey: string,
     connection: Connection,
     pda: PublicKey
   ): Promise<EscrowTipLink | undefined> {
@@ -113,7 +115,7 @@ export class EscrowTipLink {
     }
 
     const tiplinkPublicKey = pdaAccount.tiplink;
-    const email = await getGeneratedTipLinkEmail(tiplinkPublicKey);
+    const email = await getGeneratedTipLinkEmail(apiKey, tiplinkPublicKey);
 
     return new EscrowTipLink(
       email,

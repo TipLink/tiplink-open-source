@@ -20,7 +20,7 @@
     "@solana/wallet-adapter-wallets": "^0.19.23",
     "@solana/web3.js": "^1.87.6",
     "@tiplink/api": "file:../api",
-    "@tiplink/wallet-adapter": "^1.2.1",
+    "@tiplink/wallet-adapter": "^2.0.0",
     "@tiplink/wallet-adapter-react-ui": "^0.1.5",
     "concurrently": "^8.2.2",
     "next": "14.0.2",

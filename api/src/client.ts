@@ -607,20 +607,20 @@ interface MintConstructorParams {
   campaignName: string;
 
   imageUrl: string;
-  externalUrl: string;
+  externalUrl?: string;
 
   mintName: string;
   symbol: string;
-  mintDescription: string;
+  mintDescription?: string;
   mintLimit: number;
-  attributes: Record<string, string>[];
+  attributes?: Record<string, string>[];
 
   creatorPublicKey: PublicKey;
   collectionId: string;
   treeAddress: string;
   jsonUri: string;
   collectionUri: string;
-  sellerFeeBasisPoints: number;
+  royalties: number;
 
   primaryUrlSlug: string;
   rotatingUrlSlug: string;
@@ -634,22 +634,21 @@ interface MintConstructorParams {
 
 interface MintCreateParams {
   campaignName: string;
-  campaignDescription: string;
+  campaignDescription?: string;
 
   mintName: string;
-  mintDescription: string;
-  mintImageUrl: string;
+  mintDescription?: string;
   symbol: string;
-  sellerFeeBasisPoints: number;
-  externalUrl: string;
-  existingCollectionId: string;
   mintLimit: number;
+  mintImageUrl: string;
+  externalUrl?: string;
+  existingCollectionId?: string;
   creatorPublicKey: PublicKey;
-  royalties: number;
-  royaltiesDestination: PublicKey;
-  attributes: Record<string, string>;
+  royalties?: number;
+  royaltiesDestination?: PublicKey;
+  attributes?: Record<string, string>;
 
-  feeTransactionHash: string;
+  feeTransactionHash?: string;
 }
 
 interface FeeResponse {
@@ -685,7 +684,7 @@ class MintActions extends TipLinkApi {
         creator: params.creatorPublicKey.toBase58(),
         royalties: Number(params.royalties),
         description: params.mintDescription,
-        attributes: this.transformAttributes(params.attributes),
+        attributes: this.transformAttributes(params.attributes || {}),
         externalUrl: params.externalUrl,
         image: params.mintImageUrl,
         mimeType: "image/png",
@@ -722,9 +721,9 @@ class MintActions extends TipLinkApi {
       throw Error("Mint Name too Long");
     } else if (params.symbol.length > ON_CHAIN_SYMBOL_CHAR_LIMIT) {
       throw Error("Mint Symbol too Long");
-    } else if (params.royalties > 50 || params.royalties < 0) {
+    } else if (typeof(params.royalties) !== 'undefined' && (params.royalties > 50 || params.royalties < 0)) {
       throw Error("Royalties must be between 0 and 50%");
-    } else if (params.externalUrl !== "" && !this.isValidUrl(params.externalUrl)) {
+    } else if (typeof(params.externalUrl) !== 'undefined' && params.externalUrl !== "" && !this.isValidUrl(params.externalUrl)) {
       throw Error("Invalid external url");
     }
 
@@ -754,9 +753,6 @@ class MintActions extends TipLinkApi {
     if (params.mintImageUrl) {
       formData.append(`mint[${index}][archiveImageUrl]`, params.mintImageUrl);
     }
-    if (params.sellerFeeBasisPoints) {
-      formData.append(`mint[${index}][sellerFeeBasisPoints]`, JSON.stringify(Number(params.sellerFeeBasisPoints) * 100));
-    }
     if (params.externalUrl) {
       formData.append(`mint[${index}][externalUrl]`, params.externalUrl);
     }
@@ -769,6 +765,9 @@ class MintActions extends TipLinkApi {
 
     if (params.creatorPublicKey) {
       formData.append(`mint[${index}][creator]`, params.creatorPublicKey.toBase58() || '');
+    }
+    if (params.royalties) {
+      formData.append(`mint[${index}][sellerFeeBasisPoints]`, JSON.stringify(Number(params.royalties) * 100));
     }
     if (params.royaltiesDestination) {
       formData.append(`mint[${index}][royaltiesDestination]`, params.royaltiesDestination.toBase58() || '');
@@ -788,6 +787,10 @@ class MintActions extends TipLinkApi {
       throw Error("symbol is required");
     } else if (formData.get(`mint[${index}][initialLimit]`) === null) {
       throw Error("mintLimit is required");
+    }
+
+    if (!params.feeTransactionHash) {
+      throw Error("feeTransactionHash is required");
     }
 
     const stageResponse = (await this.client.fetch(
@@ -826,7 +829,7 @@ class MintActions extends TipLinkApi {
       collectionUri: createResponse["collection_uri"],
       imageUrl: createResponse["image"],
       externalUrl: createResponse["external_url"],
-      sellerFeeBasisPoints: createResponse["seller_fee_basis_points"],
+      royalties: createResponse["seller_fee_basis_points"],
       primaryUrlSlug: createResponse["primary_url_slug"],
       rotatingUrlSlug: createResponse["rotating_url_slug"],
       useRotating: createResponse["use_rotating"],
@@ -836,7 +839,7 @@ class MintActions extends TipLinkApi {
       userClaimLimit: createResponse["user_claim_limit"],
     };
 
-    if (createResponse.hasOwn("royalties_destination") && typeof createResponse["royalties_destination"] === 'string') {
+    if (Object.prototype.hasOwnProperty.call(createResponse, "royalties_destination") && typeof createResponse["royalties_destination"] === 'string') {
       mintParams["royaltiesDestination"] = new PublicKey(createResponse["royalties_destination"]);
     }
 
@@ -866,7 +869,7 @@ export class Mint extends TipLinkApi {
   treeAddress: string;
   jsonUri: string;
   collectionUri: string;
-  sellerFeeBasisPoints: number;
+  royalties: number;
 
   primaryUrlSlug: string;
   rotatingUrlSlug: string;
@@ -885,23 +888,22 @@ export class Mint extends TipLinkApi {
     this.campaign_id = params.campaign_id;
 
     this.mintName = params.mintName;
-    this.mintDescription = params.mintDescription;
+    this.mintDescription = params.mintDescription || "";
     this.campaignName = params.campaignName;
 
     this.imageUrl = params.imageUrl;
-    this.externalUrl = params.externalUrl;
+    this.externalUrl = params.externalUrl || "";
 
     this.symbol = params.symbol;
-    this.mintDescription = params.mintDescription;
+    this.mintDescription = params.mintDescription || "";
     this.mintLimit = params.mintLimit;
-    this.attributes = params.attributes;
+    this.attributes = params.attributes || [];
 
     this.creatorPublicKey = params.creatorPublicKey;
     this.collectionId = params.collectionId;
     this.treeAddress = params.treeAddress;
     this.jsonUri = params.jsonUri;
     this.collectionUri = params.collectionUri;
-    this.sellerFeeBasisPoints = params.sellerFeeBasisPoints;
 
     this.primaryUrlSlug = params.primaryUrlSlug;
     this.rotatingUrlSlug = params.rotatingUrlSlug;
@@ -911,6 +913,7 @@ export class Mint extends TipLinkApi {
     this.totpWindow = params.totpWindow;
     this.userClaimLimit = params.userClaimLimit;
     this.royaltiesDestination = params.royaltiesDestination;
+    this.royalties = params.royalties;
   }
 
   // TODO how should we handle rotating urls
