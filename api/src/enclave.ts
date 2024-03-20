@@ -9,11 +9,13 @@ const ENCLAVE_ENDPOINT =
 /**
  * Asynchronously calls secure enclave to create a TipLink, store it with an associated email, and return its public key.
  *
+ * @param {string} apiKey - The API key to be used for the request.
  * @param {string} email - The email address to be associated with the generated tiplink.
  * @returns {Promise<PublicKey>} A promise that resolves to the PublicKey of the generated tiplink.
  * @throws {Error} Throws an error if the HTTPS request fails with a non-ok status.
  */
 export async function createGeneratedTipLink(
+  apiKey: string,
   email: string
 ): Promise<PublicKey> {
   const endpoint = `${ENCLAVE_ENDPOINT}/api/v1/generated-tiplinks/create`;
@@ -21,6 +23,7 @@ export async function createGeneratedTipLink(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-api-key': apiKey,
     },
     body: JSON.stringify({ email }),
   });
@@ -43,15 +46,22 @@ export async function createGeneratedTipLink(
 /**
  * Asynchronously calls secure enclave to retrieve the email associated with a TipLink public key.
  *
+ * @param {string} apiKey - The API key to be used for the request.
  * @param {PublicKey} publicKey - The public key of the TipLink for which to retrieve the associated email.
  * @returns {Promise<string>} A promise that resolves to the email address associated with the provided TipLink public key.
  * @throws {Error} Throws an error if the HTTPS request fails with a non-ok status.
  */
 export async function getGeneratedTipLinkEmail(
+  apiKey: string,
   publicKey: PublicKey
 ): Promise<string> {
   const endpoint = `${ENCLAVE_ENDPOINT}/api/v1/generated-tiplinks/${publicKey.toString()}/email`;
-  const res = await fetch(endpoint, { method: 'GET' });
+  const res = await fetch(endpoint, {
+    method: 'GET',
+    headers: {
+      'x-api-key': apiKey,
+    },
+  });
   if (!res.ok) {
     throw new Error(`HTTP error, status: ${res.status}`);
   }
@@ -71,6 +81,7 @@ export async function getGeneratedTipLinkEmail(
 /**
  * Asynchronously emails a TipLink.
  *
+ * @param {string} apiKey - The API key to be used for the request.
  * @param {TipLink} tipLink - The TipLink object to be sent.
  * @param {string} toEmail - The email address of the recipient.
  * @param {string} [toName] - Optional name of the recipient for the email.
@@ -80,6 +91,7 @@ export async function getGeneratedTipLinkEmail(
  * @throws {Error} Throws an error if the HTTP request fails with a non-ok status.
  */
 export async function mail(
+  apiKey: string,
   tipLink: TipLink,
   toEmail: string,
   toName?: string,
@@ -98,6 +110,7 @@ export async function mail(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-api-key': apiKey,
     },
     body: JSON.stringify(body),
   });
@@ -110,6 +123,7 @@ export async function mail(
 /**
  * Asynchronously emails a deposited Escrow TipLink to a pre-defined recipient.
  *
+ * @param {string} apiKey - The API key to be used for the request.
  * @param {EscrowTipLink} tiplinkPublicKey - The Escrow TipLink to be sent. Includes the toEmail and TipLink public key.
  * @param {string} [toName] - Optional name of the recipient for the email.
  * @param {string} replyEmail - Optional email address for the recipient to reply to.
@@ -118,6 +132,7 @@ export async function mail(
  * @throws {Error} Throws an error if the HTTP request fails with a non-ok status.
  */
 export async function mailEscrow(
+  apiKey: string,
   escrowTipLink: EscrowTipLink,
   toName?: string,
   replyEmail?: string,
@@ -143,6 +158,7 @@ export async function mailEscrow(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-api-key': apiKey,
     },
     body: JSON.stringify(body),
   });

@@ -4,7 +4,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { WalletNotConnectedError } from "@solana/wallet-adapter-base";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import {
@@ -80,6 +80,7 @@ export default function Home(): JSX.Element {
 
     // Mail
     await mail(
+      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
       tipLink,
       toEmail,
       toName !== "" ? toName : undefined,
@@ -157,7 +158,14 @@ export default function Home(): JSX.Element {
     setStatusLabel("TipLink");
 
     // Mail
-    await mail(tipLink, toEmail, toName, replyEmail, replyName);
+    await mail(
+      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
+      tipLink,
+      toEmail,
+      toName !== "" ? toName : undefined,
+      replyEmail !== "" ? replyEmail : undefined,
+      replyName !== "" ? replyName : undefined,
+    );
 
     return sig;
   }, [
@@ -178,6 +186,7 @@ export default function Home(): JSX.Element {
 
     // Create
     const escrowTipLink = await EscrowTipLink.create(
+      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
       parseFloat(amount) * LAMPORTS_PER_SOL,
       toEmail,
       publicKey,
@@ -194,6 +203,7 @@ export default function Home(): JSX.Element {
 
     // Mail
     await mailEscrow(
+      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
       escrowTipLink,
       toName !== "" ? toName : undefined,
       replyEmail !== "" ? replyEmail : undefined,
@@ -222,6 +232,7 @@ export default function Home(): JSX.Element {
 
     // Create
     const escrowTipLink = await EscrowTipLink.create(
+      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
       parseFloat(amount) * 10 ** mint.decimals,
       toEmail,
       publicKey,
@@ -239,6 +250,7 @@ export default function Home(): JSX.Element {
 
     // Mail
     await mailEscrow(
+      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
       escrowTipLink,
       toName !== "" ? toName : undefined,
       replyEmail !== "" ? replyEmail : undefined,

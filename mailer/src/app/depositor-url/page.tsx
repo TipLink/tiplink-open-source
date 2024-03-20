@@ -37,7 +37,11 @@ export default function EscrowWithdraw(): JSX.Element {
   useEffect(() => {
     async function getEscrowTiplink(): Promise<void> {
       if (connection && pda) {
-        const s = await EscrowTipLink.get(connection, pda);
+        const s = await EscrowTipLink.get(
+          process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
+          connection,
+          pda,
+        );
         setEscrowTiplink(s);
         console.log("escrowTiplink", s);
       }
