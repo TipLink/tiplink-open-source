@@ -65,7 +65,7 @@ export default function SolProvider({
         title: "TipLink Mailer",
         clientId:
           process.env.NEXT_PUBLIC_TIPLINK_WALLET_ADAPTER_CLIENT_ID || "",
-        buildEnv: "development",
+        buildEnv: "production",
       }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps

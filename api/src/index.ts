@@ -1,11 +1,11 @@
-import { Keypair } from '@solana/web3.js';
-import _sodium from 'libsodium-wrappers-sumo';
-import { encode as b58encode, decode as b58decode } from 'bs58';
+import { Keypair } from "@solana/web3.js";
+import _sodium from "libsodium-wrappers-sumo";
+import { encode as b58encode, decode as b58decode } from "bs58";
 
 const DEFAULT_TIPLINK_KEYLENGTH = 12;
 const DEFAULT_HASHLESS_TIPLINK_KEYLENGTH = 16; // 16 bytes = 128 bits
-const TIPLINK_ORIGIN = "https://tiplink.io";
-const TIPLINK_PATH = "/i"
+export const TIPLINK_ORIGIN = process.env.TIPLINK_ORIGIN_OVERRIDE || "https://tiplink.io";
+const TIPLINK_PATH = "/i";
 
 const VERSION_DELIMITER = "_";
 
@@ -52,8 +52,8 @@ const pwToKeypair = async (pw: Uint8Array) => {
 const pwToKeypairV1 = async (pw: Uint8Array) => {
   const sodium = await getSodium();
   const seed = sodium.pad(pw, sodium.crypto_sign_SEEDBYTES);
-  return(Keypair.fromSeed(seed));
-}
+  return Keypair.fromSeed(seed);
+};
 
 export class TipLink {
   url: URL;
@@ -75,16 +75,17 @@ export class TipLink {
       const hash = b58encode(b);
       const urlString = `${TIPLINK_ORIGIN}${TIPLINK_PATH}#${VERSION_DELIMITER}${hash}`;
       // can't assign hash as it causes an error in React Native
-      const link = new URL(urlString)
+      const link = new URL(urlString);
       const tiplink = new TipLink(link, keypair);
       return tiplink;
-    } else { // version === 0
+    } else {
+      // version === 0
       const b = await randBuf(DEFAULT_TIPLINK_KEYLENGTH);
       const keypair = await pwToKeypair(b);
       const hash = b58encode(b);
       const urlString = `${TIPLINK_ORIGIN}${TIPLINK_PATH}#${hash}`;
       // can't assign hash as it causes an error in React Native
-      const link = new URL(urlString)
+      const link = new URL(urlString);
       const tiplink = new TipLink(link, keypair);
       return tiplink;
     }
@@ -97,7 +98,7 @@ export class TipLink {
       const versionString = slug.split(VERSION_DELIMITER, 1)[0];
       if (versionString.length === 0) {
         version = 1;
-      // } else {
+        // } else {
         // version = Number(versionString);
       }
       slug = slug.split(VERSION_DELIMITER).slice(1).join(VERSION_DELIMITER);
@@ -124,11 +125,20 @@ export class TipLink {
   // }
 }
 
-import { TipLinkClient } from './client';
+import { TipLinkClient } from "./client";
 export { TipLinkClient };
 
-import { EscrowTipLink } from './escrow';
-export { EscrowTipLink };
+import {
+  EscrowTipLink,
+  getEscrowReceiverTipLink,
+  PRIO_FEES_LAMPORTS,
+} from "./escrow";
+export { EscrowTipLink, getEscrowReceiverTipLink, PRIO_FEES_LAMPORTS };
 
-import { mail, mailEscrow } from './enclave';
-export { mail, mailEscrow };
+import {
+  mail,
+  mailEscrow,
+  createReceiverTipLink,
+  getReceiverEmail,
+} from "./enclave";
+export { mail, mailEscrow, createReceiverTipLink, getReceiverEmail };

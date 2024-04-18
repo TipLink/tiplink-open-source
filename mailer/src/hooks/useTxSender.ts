@@ -6,24 +6,15 @@ import {
 } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 
-import { getPriorityIxs } from "@/util/helpers";
-
 export default function useTxSender(): {
-  sendWalletTx: (tx: Transaction, computeUnits?: number) => Promise<string>;
-  sendKeypairTx: (
-    tx: Transaction,
-    keypair: Keypair,
-    computeUnits?: number,
-  ) => Promise<string>;
+  sendWalletTx: (tx: Transaction) => Promise<string>;
+  sendKeypairTx: (tx: Transaction, keypair: Keypair) => Promise<string>;
 } {
   const { connection } = useConnection();
   const { sendTransaction } = useWallet();
 
   const sendWalletTx = useCallback(
-    async (tx: Transaction, computeUnits = 200000) => {
-      // Add priority fees
-      tx.instructions.unshift(...getPriorityIxs(computeUnits));
-
+    async (tx: Transaction) => {
       try {
         const {
           value: { blockhash, lastValidBlockHeight },
@@ -51,10 +42,7 @@ export default function useTxSender(): {
   );
 
   const sendKeypairTx = useCallback(
-    async (tx: Transaction, keypair: Keypair, computeUnits = 200000) => {
-      // Add priority fees
-      tx.instructions.unshift(...getPriorityIxs(computeUnits));
-
+    async (tx: Transaction, keypair: Keypair) => {
       try {
         const sig = await sendAndConfirmTransaction(connection, tx, [keypair]);
 

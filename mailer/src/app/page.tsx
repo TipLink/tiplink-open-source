@@ -4,7 +4,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { WalletNotConnectedError } from "@solana/wallet-adapter-base";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import {
@@ -19,15 +19,22 @@ import {
   createAssociatedTokenAccountInstruction,
   createTransferInstruction,
 } from "@solana/spl-token";
-import { TipLink, EscrowTipLink, mail, mailEscrow } from "@tiplink/api";
+import { TipLink, EscrowTipLink } from "@tiplink/api";
 
+import {
+  mailAction,
+  mailEscrowAction,
+  createReceiverTipLinkAction,
+} from "@/app/actions";
 import useTxSender from "@/hooks/useTxSender";
 import {
-  USDC_MINT,
+  USDC_PUBLIC_KEY,
+  BONK_PUBLIC_KEY,
   TIPLINK_WITHDRAW_FEE_LAMPORTS,
   DESTINATION_ATA_RENT_LAMPORTS,
   DEST_DUST,
 } from "@/util/constants";
+import { insertPriorityFeesIxs } from "@/util/helpers";
 
 const WalletMultiButtonDynamic = dynamic(
   async () =>
@@ -71,17 +78,21 @@ export default function Home(): JSX.Element {
           DEST_DUST,
       }),
     );
-    const sig = await sendWalletTx(tx, 1000);
 
-    // DEBUG
-    console.log("TipLink URL: ", tipLink.url.toString());
+    // Insert priority fees
+    insertPriorityFeesIxs(tx);
+
+    // Send
+    const sig = await sendWalletTx(tx);
+
+    console.log(sig);
+
     setStatusUrl(tipLink.url.toString());
     setStatusLabel("TipLink");
 
     // Mail
-    await mail(
-      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
-      tipLink,
+    await mailAction(
+      tipLink.url.toString(),
       toEmail,
       toName !== "" ? toName : undefined,
       replyEmail !== "" ? replyEmail : undefined,
@@ -91,120 +102,122 @@ export default function Home(): JSX.Element {
     return sig;
   }, [amount, replyEmail, replyName, publicKey, toEmail, toName, sendWalletTx]);
 
-  const sendUsdcTipLink = useCallback(async (): Promise<string> => {
-    if (!publicKey) {
-      throw new WalletNotConnectedError();
-    }
+  const sendSplTipLink = useCallback(
+    async (mintAddr: PublicKey): Promise<string> => {
+      if (!publicKey) {
+        throw new WalletNotConnectedError();
+      }
 
-    // Setup mint
-    const usdcMintPubkey = new PublicKey(
-      "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    );
-    const usdcMint = await getMint(connection, usdcMintPubkey);
+      // Setup mint
+      const mint = await getMint(connection, mintAddr);
 
-    // Create
-    const tipLink = await TipLink.create();
+      // Create
+      const tipLink = await TipLink.create();
 
-    // Fund
+      // Fund
 
-    // Transfer Lamports
-    const tx = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: tipLink.keypair.publicKey,
-        lamports:
-          TIPLINK_WITHDRAW_FEE_LAMPORTS +
-          DESTINATION_ATA_RENT_LAMPORTS +
-          DEST_DUST,
-      }),
-    );
+      // Transfer Lamports
+      const tx = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: tipLink.keypair.publicKey,
+          lamports:
+            TIPLINK_WITHDRAW_FEE_LAMPORTS +
+            DESTINATION_ATA_RENT_LAMPORTS +
+            DEST_DUST,
+        }),
+      );
 
-    // Create TipLink ATA
-    const tipLinkAta = await getAssociatedTokenAddress(
-      usdcMint.address,
-      tipLink.keypair.publicKey,
-    );
-    const accountInfo = await connection.getAccountInfo(tipLinkAta);
-    if (accountInfo === null) {
+      // Create TipLink ATA
+      const tipLinkAta = await getAssociatedTokenAddress(
+        mint.address,
+        tipLink.keypair.publicKey,
+      );
+      const accountInfo = await connection.getAccountInfo(tipLinkAta);
+      if (accountInfo === null) {
+        tx.add(
+          createAssociatedTokenAccountInstruction(
+            publicKey,
+            tipLinkAta,
+            tipLink.keypair.publicKey,
+            mint.address,
+          ),
+        );
+      }
+
+      // Transfer SPL
+      const fromAta = await getAssociatedTokenAddress(mint.address, publicKey);
       tx.add(
-        createAssociatedTokenAccountInstruction(
-          publicKey,
+        createTransferInstruction(
+          fromAta,
           tipLinkAta,
-          tipLink.keypair.publicKey,
-          usdcMint.address,
+          publicKey,
+          parseFloat(amount) * 10 ** mint.decimals,
         ),
       );
-    }
 
-    // Transfer SPL
-    const fromAta = await getAssociatedTokenAddress(
-      usdcMint.address,
+      // Insert priority fees
+      insertPriorityFeesIxs(tx);
+
+      // Send
+      const sig = await sendWalletTx(tx);
+
+      setStatusUrl(tipLink.url.toString());
+      setStatusLabel("TipLink");
+
+      // Mail
+      await mailAction(
+        tipLink.url.toString(),
+        toEmail,
+        toName !== "" ? toName : undefined,
+        replyEmail !== "" ? replyEmail : undefined,
+        replyName !== "" ? replyName : undefined,
+      );
+
+      return sig;
+    },
+    [
+      connection,
+      amount,
+      replyEmail,
+      replyName,
       publicKey,
-    );
-    tx.add(
-      createTransferInstruction(
-        fromAta,
-        tipLinkAta,
-        publicKey,
-        parseFloat(amount) * 10 ** usdcMint.decimals,
-      ),
-    );
-
-    const sig = await sendWalletTx(tx, 40000);
-
-    // DEBUG
-    console.log("TipLink URL: ", tipLink.url.toString());
-    setStatusUrl(tipLink.url.toString());
-    setStatusLabel("TipLink");
-
-    // Mail
-    await mail(
-      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
-      tipLink,
       toEmail,
-      toName !== "" ? toName : undefined,
-      replyEmail !== "" ? replyEmail : undefined,
-      replyName !== "" ? replyName : undefined,
-    );
-
-    return sig;
-  }, [
-    connection,
-    amount,
-    replyEmail,
-    replyName,
-    publicKey,
-    toEmail,
-    toName,
-    sendWalletTx,
-  ]);
+      toName,
+      sendWalletTx,
+    ],
+  );
 
   const sendEscrowTipLink = useCallback(async (): Promise<string> => {
     if (!publicKey) {
       throw new WalletNotConnectedError();
     }
 
-    // Create
-    const escrowTipLink = await EscrowTipLink.create(
-      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
-      parseFloat(amount) * LAMPORTS_PER_SOL,
+    // Create Escrow TipLink
+    const receiverTipLinkStr = await createReceiverTipLinkAction(toEmail);
+    const receiverTipLink = new PublicKey(receiverTipLinkStr);
+    const escrowTipLink = await EscrowTipLink.create({
+      connection,
+      amount: parseFloat(amount) * LAMPORTS_PER_SOL,
       toEmail,
-      publicKey,
-    );
+      depositor: publicKey,
+      receiverTipLink,
+    });
 
     // Deposit
     const tx = await escrowTipLink.depositTx(connection);
-    const sig = await sendWalletTx(tx, 40000);
+    const sig = await sendWalletTx(tx);
 
     // DEBUG
-    console.log("Depositor URL: ", escrowTipLink.depositUrl.toString());
-    setStatusUrl(escrowTipLink.depositUrl.toString());
+    console.log("Depositor URL: ", escrowTipLink.depositorUrl.toString());
+    setStatusUrl(escrowTipLink.depositorUrl.toString());
     setStatusLabel("Depositor URL");
 
     // Mail
-    await mailEscrow(
-      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
-      escrowTipLink,
+    await mailEscrowAction(
+      escrowTipLink.toEmail,
+      escrowTipLink.depositorUrl.toString(),
+      escrowTipLink.receiverTipLink.toString(),
       toName !== "" ? toName : undefined,
       replyEmail !== "" ? replyEmail : undefined,
       replyName !== "" ? replyName : undefined,
@@ -216,58 +229,65 @@ export default function Home(): JSX.Element {
     publicKey,
     toEmail,
     toName,
-    connection,
     replyEmail,
     replyName,
     sendWalletTx,
+    connection,
   ]);
 
-  const sendEscrowUsdcTipLink = useCallback(async (): Promise<string> => {
-    if (!publicKey) {
-      throw new WalletNotConnectedError();
-    }
+  const sendEscrowSplTipLink = useCallback(
+    async (mintAddr: PublicKey): Promise<string> => {
+      if (!publicKey) {
+        throw new WalletNotConnectedError();
+      }
 
-    // Setup mint
-    const mint = await getMint(connection, USDC_MINT);
+      // Setup mint
+      const mint = await getMint(connection, mintAddr);
 
-    // Create
-    const escrowTipLink = await EscrowTipLink.create(
-      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
-      parseFloat(amount) * 10 ** mint.decimals,
-      toEmail,
+      // Create Escrow TipLink
+      const receiverTipLinkStr = await createReceiverTipLinkAction(toEmail);
+      const receiverTipLink = new PublicKey(receiverTipLinkStr);
+      const escrowTipLink = await EscrowTipLink.create({
+        connection,
+        amount: parseFloat(amount) * 10 ** mint.decimals,
+        toEmail,
+        depositor: publicKey,
+        receiverTipLink,
+        mint,
+      });
+
+      // Deposit
+      const tx = await escrowTipLink.depositTx(connection);
+      const sig = await sendWalletTx(tx);
+
+      // DEBUG
+      console.log("Depositor URL: ", escrowTipLink.depositorUrl.toString());
+      setStatusUrl(escrowTipLink.depositorUrl.toString());
+      setStatusLabel("Depositor URL");
+
+      // Mail
+      await mailEscrowAction(
+        escrowTipLink.toEmail,
+        escrowTipLink.depositorUrl.toString(),
+        escrowTipLink.receiverTipLink.toString(),
+        toName !== "" ? toName : undefined,
+        replyEmail !== "" ? replyEmail : undefined,
+        replyName !== "" ? replyName : undefined,
+      );
+
+      return sig;
+    },
+    [
+      amount,
       publicKey,
-      mint,
-    );
-
-    // Deposit
-    const tx = await escrowTipLink.depositTx(connection);
-    const sig = await sendWalletTx(tx, 90000);
-
-    // DEBUG
-    console.log("Depositor URL: ", escrowTipLink.depositUrl.toString());
-    setStatusUrl(escrowTipLink.depositUrl.toString());
-    setStatusLabel("Depositor URL");
-
-    // Mail
-    await mailEscrow(
-      process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
-      escrowTipLink,
-      toName !== "" ? toName : undefined,
-      replyEmail !== "" ? replyEmail : undefined,
-      replyName !== "" ? replyName : undefined,
-    );
-
-    return sig;
-  }, [
-    amount,
-    publicKey,
-    toEmail,
-    toName,
-    connection,
-    replyEmail,
-    replyName,
-    sendWalletTx,
-  ]);
+      toEmail,
+      toName,
+      connection,
+      replyEmail,
+      replyName,
+      sendWalletTx,
+    ],
+  );
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -282,14 +302,20 @@ export default function Home(): JSX.Element {
       let sig = "";
 
       try {
-        if (!isEscrow && token === "SOL") {
-          sig = await sendTipLink();
-        } else if (!isEscrow && token === "USDC") {
-          sig = await sendUsdcTipLink();
-        } else if (isEscrow && token === "SOL") {
-          sig = await sendEscrowTipLink();
-        } else if (isEscrow && token === "USDC") {
-          sig = await sendEscrowUsdcTipLink();
+        if (token === "SOL") {
+          if (!isEscrow) {
+            sig = await sendTipLink();
+          } else {
+            sig = await sendEscrowTipLink();
+          }
+        } else {
+          const mintAddress =
+            token === "USDC" ? USDC_PUBLIC_KEY : BONK_PUBLIC_KEY;
+          if (!isEscrow) {
+            sig = await sendSplTipLink(mintAddress);
+          } else {
+            sig = await sendEscrowSplTipLink(mintAddress);
+          }
         }
 
         setIsSuccess(true);
@@ -309,9 +335,9 @@ export default function Home(): JSX.Element {
       isEscrow,
       token,
       sendTipLink,
-      sendUsdcTipLink,
+      sendSplTipLink,
       sendEscrowTipLink,
-      sendEscrowUsdcTipLink,
+      sendEscrowSplTipLink,
       connection,
     ],
   );
@@ -332,6 +358,19 @@ export default function Home(): JSX.Element {
     msg = <p className="text-red-500 font-bold">Failure. {msgUrl}</p>;
   } else if (!publicKey) {
     msg = <p className="text-gray-800 font-bold">Connect wallet!</p>;
+  }
+
+  let max;
+  let min;
+  if (token === "SOL") {
+    max = "0.2";
+    min = "0.0001";
+  } else if (token === "USDC") {
+    max = "20";
+    min = "0.01";
+  } else if (token === "Bonk") {
+    max = "100000";
+    min = "50";
   }
 
   return (
@@ -438,6 +477,7 @@ export default function Home(): JSX.Element {
               >
                 <option>SOL</option>
                 <option>USDC</option>
+                <option>Bonk</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 <svg
@@ -465,9 +505,9 @@ export default function Home(): JSX.Element {
                 id="amount"
                 type="number"
                 placeholder="0.01"
-                max="0.2"
-                min="0.001"
-                step="0.001"
+                max={max}
+                min={min}
+                step={min}
                 onChange={(e) => setAmount(e.target.value)}
                 required
               />

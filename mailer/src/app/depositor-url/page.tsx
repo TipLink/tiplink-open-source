@@ -5,9 +5,12 @@ import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { TipLink, EscrowTipLink } from "@tiplink/api";
+import { TipLink, EscrowTipLink, getEscrowReceiverTipLink } from "@tiplink/api";
 
 import useTxSender from "@/hooks/useTxSender";
+import { USDC_PUBLIC_KEY } from "@/util/constants";
+import { insertPriorityFeesIxs } from "@/util/helpers";
+import { getReceiverEmailAction } from "@/app/actions";
 
 const WalletMultiButtonDynamic = dynamic(
   async () =>
@@ -26,6 +29,22 @@ export default function EscrowWithdraw(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isFailure, setIsFailure] = useState(false);
 
+  const mintSymbol = useMemo(() => {
+    if (!escrowTiplink) {
+      return undefined;
+    }
+
+    if (!escrowTiplink.mint) {
+      return "SOL";
+    }
+
+    if (escrowTiplink.mint.address.equals(USDC_PUBLIC_KEY)) {
+      return "USDC";
+    }
+
+    return "BONK";
+  }, [escrowTiplink]);
+
   const pda = useMemo<PublicKey | undefined>(() => {
     const pdaStr = searchParams.get("pda");
     if (pdaStr) {
@@ -37,13 +56,15 @@ export default function EscrowWithdraw(): JSX.Element {
   useEffect(() => {
     async function getEscrowTiplink(): Promise<void> {
       if (connection && pda) {
-        const s = await EscrowTipLink.get(
-          process.env.NEXT_PUBLIC_MAILER_API_KEY as string,
-          connection,
-          pda,
-        );
-        setEscrowTiplink(s);
-        console.log("escrowTiplink", s);
+        const receiverTipLink = await getEscrowReceiverTipLink(connection, pda);
+        if (receiverTipLink) {
+          const receiverEmail = await getReceiverEmailAction(
+            receiverTipLink.toString(),
+          );
+          const s = await EscrowTipLink.get({ connection, pda, receiverEmail });
+          setEscrowTiplink(s);
+          console.log("escrowTiplink", s);
+        }
       }
     }
 
@@ -57,7 +78,7 @@ export default function EscrowWithdraw(): JSX.Element {
         if (tiplinkHash !== "") {
           const tiplinkUrl = `https://tiplink.io/i${tiplinkHash}`;
           const t = await TipLink.fromLink(tiplinkUrl);
-          if (t.keypair.publicKey.equals(escrowTiplink.tiplinkPublicKey)) {
+          if (t.keypair.publicKey.equals(escrowTiplink.receiverTipLink)) {
             setTiplink(t);
           }
         }
@@ -87,6 +108,8 @@ export default function EscrowWithdraw(): JSX.Element {
             tiplink.keypair.publicKey, // authority
             publicKey, // destination
           );
+          // TODO: Derive CU price and limit from priority fees lamports from API. Default values work for now.
+          insertPriorityFeesIxs(tx);
           await sendKeypairTx(tx, tiplink.keypair);
         } else {
           const tx = await escrowTiplink.withdrawTx(
@@ -94,6 +117,7 @@ export default function EscrowWithdraw(): JSX.Element {
             publicKey, // authority
             publicKey, // destination
           );
+          insertPriorityFeesIxs(tx);
           await sendWalletTx(tx);
         }
 
@@ -148,9 +172,9 @@ export default function EscrowWithdraw(): JSX.Element {
                   ? escrowTiplink.amount / 10 ** escrowTiplink.mint.decimals
                   : escrowTiplink.amount / LAMPORTS_PER_SOL}
               </p>
-              <p className="text-gray-800 font-bold">
-                Token: {escrowTiplink.mint ? "USDC" : "SOL"}
-              </p>
+              {mintSymbol && (
+                <p className="text-gray-800 font-bold">{`Token: ${mintSymbol}`}</p>
+              )}
             </div>
             <button
               className={`shadow bg-blue-500 hover:bg-blue-400 focus:shadow-outline focus:outline-none text-white font-bold py-2 px-4 rounded

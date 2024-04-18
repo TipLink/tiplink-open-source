@@ -1,14 +1,41 @@
-import { ComputeBudgetProgram, TransactionInstruction } from "@solana/web3.js";
+import { ComputeBudgetProgram, Transaction, Connection } from "@solana/web3.js";
 
-export function getPriorityIxs(computeUnits: number): TransactionInstruction[] {
-  const computeUnitPrice = 50000;
+import {
+  DEFAULT_COMPUTE_UNIT_PRICE,
+  DEFAULT_COMPUTE_UNIT_LIMIT,
+} from "./constants";
 
-  return [
-    ComputeBudgetProgram.setComputeUnitLimit({
-      units: computeUnits,
-    }),
+export function getPriorityFeesLamports(
+  computeUnitPrice = DEFAULT_COMPUTE_UNIT_PRICE,
+  computeUnitLimit = DEFAULT_COMPUTE_UNIT_LIMIT,
+): number {
+  return (computeUnitPrice * computeUnitLimit) / 1_000_000;
+}
+
+export function insertPriorityFeesIxs(
+  tx: Transaction,
+  computeUnitPrice = DEFAULT_COMPUTE_UNIT_PRICE,
+  computeUnitLimit = DEFAULT_COMPUTE_UNIT_LIMIT,
+): void {
+  const ixs = [
     ComputeBudgetProgram.setComputeUnitPrice({
       microLamports: computeUnitPrice,
     }),
+    ComputeBudgetProgram.setComputeUnitLimit({
+      units: computeUnitLimit,
+    }),
   ];
+
+  tx.instructions.unshift(...ixs);
+}
+
+export async function isConnected(connection: Connection): Promise<boolean> {
+  try {
+    const version = await connection.getVersion();
+    console.log("Connected to cluster, version:", version["solana-core"]);
+    return true;
+  } catch (err) {
+    console.error("Failed to connect to cluster:", err);
+    return false;
+  }
 }
