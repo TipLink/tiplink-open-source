@@ -1,15 +1,74 @@
-import { Connection, PublicKey, Transaction, Keypair } from '@solana/web3.js';
-import { Mint, getMint, getAssociatedTokenAddress } from '@solana/spl-token';
-import { Program, BN } from '@coral-xyz/anchor';
+import { Connection, PublicKey, Transaction, Keypair } from "@solana/web3.js";
+import { Mint, getMint, getAssociatedTokenAddress } from "@solana/spl-token";
+import { Program, BN } from "@coral-xyz/anchor";
 
-import { IDL, TiplinkEscrow } from './anchor-generated/types/tiplink_escrow';
+import { IDL, TiplinkEscrow } from "./anchor-generated/types/tiplink_escrow";
 import {
   ESCROW_PROGRAM_ID,
   TREASURY_PUBLIC_KEY,
   PDA_SEED,
   DEPOSIT_URL_BASE,
-} from './constants';
-import { createGeneratedTipLink, getGeneratedTipLinkEmail } from '../enclave';
+} from "./constants";
+import { createReceiverTipLink, getReceiverEmail } from "../enclave";
+
+interface CreateWithReceiverArgs {
+  connection: Connection;
+  amount: number;
+  toEmail: string;
+  depositor: PublicKey;
+  receiverTipLink: PublicKey;
+  mint?: Mint;
+}
+
+interface CreateWithApiArgs {
+  connection: Connection;
+  amount: number;
+  toEmail: string;
+  depositor: PublicKey;
+  apiKey: string;
+  mint?: Mint;
+}
+
+interface GetaWithReceiverArgs {
+  connection: Connection;
+  pda: PublicKey;
+  receiverEmail: string;
+}
+
+interface GetWithApiArgs {
+  connection: Connection;
+  pda: PublicKey;
+  apiKey: string;
+}
+
+export async function getEscrowReceiverTipLink(
+  connection: Connection,
+  pda: PublicKey
+): Promise<PublicKey | undefined> {
+  const escrowProgram = new Program(
+    IDL,
+    ESCROW_PROGRAM_ID,
+    { connection } // Provider interface only requires a connection, not a wallet
+  );
+
+  let pdaAccount;
+  // TODO: Implement better method of deciphering between lamport and SPL PDAs
+  try {
+    // First see if it's a lamport escrow
+    pdaAccount = await escrowProgram.account.escrowLamports.fetch(pda);
+  } catch {
+    try {
+      // If not, see if it's a SPL escrow
+      pdaAccount = await escrowProgram.account.escrowSpl.fetch(pda);
+    } catch {
+      // No escrow exists for this PDA
+      // TODO: Provide info on whether it was withdrawn or never existed
+      return undefined;
+    }
+  }
+
+  return pdaAccount.tiplink;
+}
 
 /**
  * Represents an on-chain escrow that can be withdrawn by the original depositor or a TipLink, e-mailed to a recipient.
@@ -20,42 +79,45 @@ import { createGeneratedTipLink, getGeneratedTipLinkEmail } from '../enclave';
 export class EscrowTipLink {
   // Required
   toEmail: string;
-  tiplinkPublicKey: PublicKey;
+  receiverTipLink: PublicKey;
   amount: number;
   depositor: PublicKey;
+  escrowId: PublicKey;
+  pda: PublicKey;
 
   // Optional
-  pda?: PublicKey; // Created on deposit
   mint?: Mint;
 
-  get depositUrl(): URL {
+  get depositorUrl(): URL {
     // Sanity check; error checking occurs in the enclave and on-chain program
     if (!this.pda) {
       throw new Error(
-        'Attempted to get depositUrl from a non-deposited escrow.'
+        "Attempted to get depositorUrl from a non-deposited escrow."
       );
     }
 
     const urlStr =
       process.env.NEXT_PUBLIC_ESCROW_DEPOSITOR_URL_OVERRIDE || DEPOSIT_URL_BASE;
     const url = new URL(urlStr);
-    url.searchParams.append('pda', this.pda.toString());
+    url.searchParams.append("pda", this.pda.toString());
 
     return url;
   }
 
   private constructor(
     toEmail: string,
-    tiplink: PublicKey,
+    receiverTipLink: PublicKey,
     amount: number,
     depositor: PublicKey,
-    pda?: PublicKey,
+    escrowId: PublicKey,
+    pda: PublicKey,
     mint?: Mint
   ) {
     this.toEmail = toEmail;
-    this.tiplinkPublicKey = tiplink;
+    this.receiverTipLink = receiverTipLink;
     this.amount = amount;
     this.depositor = depositor;
+    this.escrowId = escrowId;
     this.pda = pda;
     this.mint = mint;
   }
@@ -64,19 +126,35 @@ export class EscrowTipLink {
    * Creates an EscrowTipLink instance to be deposited.
    */
   static async create(
-    apiKey: string,
-    amount: number,
-    toEmail: string,
-    depositor: PublicKey,
-    mint?: Mint
+    args: CreateWithReceiverArgs | CreateWithApiArgs
   ): Promise<EscrowTipLink> {
-    const tiplink = await createGeneratedTipLink(apiKey, toEmail);
+    const { connection, amount, toEmail, depositor, mint } = args;
+    let { receiverTipLink } = args as CreateWithReceiverArgs;
+    const { apiKey } = args as CreateWithApiArgs;
+
+    if (!receiverTipLink) {
+      receiverTipLink = await createReceiverTipLink(apiKey, toEmail);
+    }
+
+    const tiplinkEscrowProgram = new Program(
+      IDL,
+      ESCROW_PROGRAM_ID,
+      { connection } // Provider interface only requires a connection, not a wallet
+    );
+    const escrowKeypair = Keypair.generate();
+    const escrowId = escrowKeypair.publicKey;
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from(PDA_SEED), escrowId.toBuffer(), depositor.toBuffer()],
+      tiplinkEscrowProgram.programId
+    );
+
     return new EscrowTipLink(
       toEmail,
-      tiplink,
+      receiverTipLink,
       amount,
       depositor,
-      undefined,
+      escrowId,
+      pda,
       mint
     );
   }
@@ -85,10 +163,12 @@ export class EscrowTipLink {
    * Creates an EscrowTipLink instance from a deposited, on-chain escrow.
    */
   static async get(
-    apiKey: string,
-    connection: Connection,
-    pda: PublicKey
+    args: GetaWithReceiverArgs | GetWithApiArgs
   ): Promise<EscrowTipLink | undefined> {
+    const { connection, pda } = args;
+    let { receiverEmail } = args as GetaWithReceiverArgs;
+    const { apiKey } = args as GetWithApiArgs;
+
     const escrowProgram = new Program(
       IDL,
       ESCROW_PROGRAM_ID,
@@ -114,14 +194,17 @@ export class EscrowTipLink {
       }
     }
 
-    const tiplinkPublicKey = pdaAccount.tiplink;
-    const email = await getGeneratedTipLinkEmail(apiKey, tiplinkPublicKey);
+    const receiverTipLink = pdaAccount.tiplink;
+    if (!receiverEmail) {
+      receiverEmail = await getReceiverEmail(apiKey, receiverTipLink);
+    }
 
     return new EscrowTipLink(
-      email,
-      tiplinkPublicKey,
+      receiverEmail,
+      receiverTipLink,
       pdaAccount.amount.toNumber(),
       pdaAccount.depositor,
+      pdaAccount.escrowId,
       pda,
       mint
     );
@@ -137,8 +220,8 @@ export class EscrowTipLink {
       .accounts({
         depositor: this.depositor,
         pda,
-        treasury: TREASURY_PUBLIC_KEY, // TODO: Switch to mainnet address
-        tiplink: this.tiplinkPublicKey,
+        treasury: TREASURY_PUBLIC_KEY,
+        tiplink: this.receiverTipLink,
       })
       .transaction();
 
@@ -152,7 +235,7 @@ export class EscrowTipLink {
   ): Promise<Transaction> {
     // Sanity check; error checking occurs in the enclave and on-chain program
     if (!this.mint) {
-      throw new Error('Attempted to deposit SPL without mint set');
+      throw new Error("Attempted to deposit SPL without mint set");
     }
 
     const pdaAta = await getAssociatedTokenAddress(
@@ -173,7 +256,7 @@ export class EscrowTipLink {
         depositorTa: depositorAta,
         pda,
         pdaAta,
-        tiplink: this.tiplinkPublicKey,
+        tiplink: this.receiverTipLink,
         treasury: TREASURY_PUBLIC_KEY, // TODO: Switch to mainnet address
         mint: this.mint.address,
       })
@@ -183,27 +266,19 @@ export class EscrowTipLink {
   }
 
   async depositTx(connection: Connection): Promise<Transaction> {
-    // Sanity check; error checking occurs in the enclave and on-chain program
-    if (this.pda) {
-      throw new Error('Escrow can only be deposited once');
-    }
-
     const tiplinkEscrowProgram = new Program(
       IDL,
       ESCROW_PROGRAM_ID,
       { connection } // Provider interface only requires a connection, not a wallet
     );
-    const escrowKeypair = Keypair.generate();
-    const escrowId = escrowKeypair.publicKey;
-    const [pda] = PublicKey.findProgramAddressSync(
-      [Buffer.from(PDA_SEED), escrowId.toBuffer(), this.depositor.toBuffer()],
-      tiplinkEscrowProgram.programId
-    );
 
     const tx: Transaction = this.mint
-      ? await this.depositSplTx(tiplinkEscrowProgram, escrowId, pda)
-      : await this.depositLamportTx(tiplinkEscrowProgram, escrowId, pda);
-    this.pda = pda;
+      ? await this.depositSplTx(tiplinkEscrowProgram, this.escrowId, this.pda)
+      : await this.depositLamportTx(
+          tiplinkEscrowProgram,
+          this.escrowId,
+          this.pda
+        );
     return tx;
   }
 
@@ -230,11 +305,8 @@ export class EscrowTipLink {
     dest: PublicKey
   ): Promise<Transaction> {
     // Sanity check; error checking occurs in the enclave and on-chain program
-    if (!this.pda) {
-      throw new Error('Escrow has not been deposited.');
-    }
     if (!this.mint) {
-      throw new Error('Attempted to withdraw SPL without mint set');
+      throw new Error("Attempted to withdraw SPL without mint set");
     }
 
     // Recalculating to keep class state smaller
@@ -265,11 +337,6 @@ export class EscrowTipLink {
     authority: PublicKey,
     dest: PublicKey
   ): Promise<Transaction> {
-    // Sanity check; error checking occurs in the enclave and on-chain program
-    if (!this.pda) {
-      throw new Error('Escrow has not been deposited');
-    }
-
     const tiplinkEscrowProgram = new Program(
       IDL,
       ESCROW_PROGRAM_ID,

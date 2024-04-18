@@ -1,18 +1,18 @@
 // NOTE: Withdraw with emailed TipLink requires manual testing.
 
-import 'dotenv/config';
+import "dotenv/config";
 import {
   PublicKey,
   sendAndConfirmTransaction,
   LAMPORTS_PER_SOL,
-} from '@solana/web3.js';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
+} from "@solana/web3.js";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
 
-import { EscrowTipLink } from '../../src';
-import { getDepositorKeypair, getConnection, getUsdcMint } from './helpers';
+import { EscrowTipLink } from "../../src";
+import { getDepositorKeypair, getConnection, getUsdcMint } from "./helpers";
 
 export const onchainTest =
-  process.env.ONCHAIN_TESTS === 'true' ? test : test.skip;
+  process.env.ONCHAIN_TESTS === "true" ? test : test.skip;
 
 let lamportEscrowTipLink: EscrowTipLink;
 let lamportPda: PublicKey;
@@ -21,7 +21,7 @@ let splEscrowTipLink: EscrowTipLink;
 let splPda: PublicKey;
 
 beforeEach((done) => {
-  if (process.env.ONCHAIN_TESTS === 'true') {
+  if (process.env.ONCHAIN_TESTS === "true") {
     // Sleep 3 seconds to avoid RPC throttling
     setTimeout(() => {
       done();
@@ -31,27 +31,29 @@ beforeEach((done) => {
   }
 });
 
-onchainTest('Creates lamport EscrowTipLink', async () => {
+onchainTest("Creates lamport EscrowTipLink", async () => {
   const amount = 20000;
-  const recipient = 'example@email.com';
+  const toEmail = "example@email.com";
   const depositor = (await getDepositorKeypair()).publicKey;
+  const connection = getConnection();
 
-  lamportEscrowTipLink = await EscrowTipLink.create(
-    process.env.MAILER_API_KEY as string,
+  lamportEscrowTipLink = await EscrowTipLink.create({
+    connection,
     amount,
-    recipient,
-    depositor
-  );
+    toEmail,
+    depositor,
+    apiKey: process.env.MAILER_API_KEY as string,
+  });
 
   // Check
   expect(lamportEscrowTipLink.amount).toBe(amount);
-  expect(lamportEscrowTipLink.toEmail).toBe(recipient);
+  expect(lamportEscrowTipLink.toEmail).toBe(toEmail);
   expect(lamportEscrowTipLink.depositor).toBe(depositor);
-  expect(lamportEscrowTipLink.tiplinkPublicKey).toBeInstanceOf(PublicKey);
+  expect(lamportEscrowTipLink.receiverTipLink).toBeInstanceOf(PublicKey);
 });
 
 onchainTest(
-  'Deposits lamport EscrowTipLink',
+  "Deposits lamport EscrowTipLink",
   async () => {
     const depositorKeypair = await getDepositorKeypair(0.1 * LAMPORTS_PER_SOL);
     const connection = getConnection();
@@ -63,12 +65,12 @@ onchainTest(
     expect(lamportEscrowTipLink.pda).toBeDefined();
     lamportPda = lamportEscrowTipLink.pda as PublicKey;
     expect(lamportPda).toBeInstanceOf(PublicKey);
-    expect(lamportEscrowTipLink.depositUrl).toBeInstanceOf(URL);
+    expect(lamportEscrowTipLink.depositorUrl).toBeInstanceOf(URL);
   },
   50000
 ); // Increase timeout for tx confirmation
 
-onchainTest('Gets lamport EscrowTipLink', async () => {
+onchainTest("Gets lamport EscrowTipLink", async () => {
   const connection = getConnection();
 
   if (!lamportPda) {
@@ -88,7 +90,7 @@ onchainTest('Gets lamport EscrowTipLink', async () => {
 });
 
 onchainTest(
-  'Withdraws lamport EscrowTipLink with depositor',
+  "Withdraws lamport EscrowTipLink with depositor",
   async () => {
     const connection = getConnection();
     const depositorKeypair = await getDepositorKeypair(0.1 * LAMPORTS_PER_SOL);
@@ -120,31 +122,33 @@ onchainTest(
   50000
 ); // Increase timeout for tx confirmation
 
-onchainTest('Creates SPL EscrowTipLink', async () => {
+onchainTest("Creates SPL EscrowTipLink", async () => {
+  const connection = getConnection();
   const usdcMint = await getUsdcMint();
 
   const amount = 1;
-  const recipient = 'example@email.com';
+  const toEmail = "example@email.com";
   const depositor = (await getDepositorKeypair()).publicKey;
 
-  splEscrowTipLink = await EscrowTipLink.create(
-    process.env.MAILER_API_KEY as string,
+  splEscrowTipLink = await EscrowTipLink.create({
+    connection,
     amount,
-    recipient,
+    toEmail,
     depositor,
-    usdcMint
-  );
+    apiKey: process.env.MAILER_API_KEY as string,
+    mint: usdcMint,
+  });
 
   // Check
   expect(splEscrowTipLink.mint).toBe(usdcMint);
   expect(splEscrowTipLink.amount).toBe(amount);
-  expect(splEscrowTipLink.toEmail).toBe(recipient);
+  expect(splEscrowTipLink.toEmail).toBe(toEmail);
   expect(splEscrowTipLink.depositor).toBe(depositor);
-  expect(splEscrowTipLink.tiplinkPublicKey).toBeInstanceOf(PublicKey);
+  expect(splEscrowTipLink.receiverTipLink).toBeInstanceOf(PublicKey);
 });
 
 onchainTest(
-  'Deposits SPL EscrowTipLink',
+  "Deposits SPL EscrowTipLink",
   async () => {
     const connection = getConnection();
     const depositorKeypair = await getDepositorKeypair(
@@ -159,12 +163,12 @@ onchainTest(
     expect(splEscrowTipLink.pda).toBeDefined();
     splPda = splEscrowTipLink.pda as PublicKey;
     expect(splPda).toBeInstanceOf(PublicKey);
-    expect(splEscrowTipLink.depositUrl).toBeInstanceOf(URL);
+    expect(splEscrowTipLink.depositorUrl).toBeInstanceOf(URL);
   },
   50000
 ); // Increase timeout for tx confirmation
 
-onchainTest('Gets SPL EscrowTipLink', async () => {
+onchainTest("Gets SPL EscrowTipLink", async () => {
   const connection = getConnection();
 
   if (!splPda) {
@@ -184,7 +188,7 @@ onchainTest('Gets SPL EscrowTipLink', async () => {
 });
 
 onchainTest(
-  'Withdraws SPL EscrowTipLink with depositor',
+  "Withdraws SPL EscrowTipLink with depositor",
   async () => {
     const connection = getConnection();
     const depositorKeypair = await getDepositorKeypair(0.1 * LAMPORTS_PER_SOL);

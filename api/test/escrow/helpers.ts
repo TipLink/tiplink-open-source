@@ -1,10 +1,10 @@
-import 'dotenv/config';
+import "dotenv/config";
 
-import { mnemonicToSeedSync } from 'bip39';
+import { mnemonicToSeedSync } from "bip39";
 
-import { Keypair, Connection, PublicKey } from '@solana/web3.js';
-import { getMint, Mint } from '@solana/spl-token';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { Keypair, Connection, PublicKey } from "@solana/web3.js";
+import { getMint, Mint } from "@solana/spl-token";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
 
 let connection: Connection;
 export function getConnection() {
@@ -19,8 +19,7 @@ export function getConnection() {
     );
   }
 
-  // Finalized helps when needing to reliably check blockchain state changes in back to back unit tests
-  connection = new Connection(rpcEndpoint, 'finalized');
+  connection = new Connection(rpcEndpoint, "confirmed");
 
   return connection;
 }
@@ -33,7 +32,7 @@ export async function getUsdcMint() {
   const conn = getConnection();
 
   const usdcMintPublicKey = new PublicKey(
-    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
   );
   usdcMint = await getMint(conn, usdcMintPublicKey);
 

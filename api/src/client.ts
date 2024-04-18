@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
-import { TipLink } from './index';
+import { TipLink, TIPLINK_ORIGIN } from './index';
 import { generateRandomSalt, generateKey, encrypt, encryptPublicKey, decrypt } from './crypto';
 
 export { decrypt };
@@ -9,8 +9,7 @@ export { decrypt };
 export const ON_CHAIN_NAME_CHAR_LIMIT = 32;
 export const ON_CHAIN_SYMBOL_CHAR_LIMIT = 10;
 
-const URL_BASE = "https://tiplink.io";
-// const URL_BASE = "http://localhost:3000";
+const URL_BASE = TIPLINK_ORIGIN;
 const API_URL_BASE = `${URL_BASE}/api`;
 
 const STEP = 100;
@@ -95,7 +94,11 @@ class TipLinkApi {
   }
 }
 
-interface CampaignCreateParams {
+interface Themeable {
+  themeId?: number;
+}
+
+interface CampaignCreateParams extends Themeable {
   name: string;
   description: string;
   imageUrl: string;
@@ -114,7 +117,7 @@ interface CampaignFindParams {
   active: boolean; // default true
 }
 
-interface CampaignResult {
+interface CampaignResult extends Themeable {
   id: number;
   name: string;
   description: string;
@@ -180,6 +183,7 @@ class CampaignActions extends TipLinkApi {
     const description = typeof(params) != "undefined" && typeof(params.description) != "undefined" ? params.description : "";
     const imageUrl = typeof(params) != "undefined" && typeof(params.imageUrl) != "undefined" ? params.imageUrl : "";
     const active = typeof(params) != "undefined" && typeof(params.active) != "undefined" ? params.active : true;
+    const themeId = typeof(params) != "undefined" && typeof(params.themeId) != "undefined" ? params.themeId : null;
 
     const salt = generateRandomSalt();
 
@@ -191,11 +195,12 @@ class CampaignActions extends TipLinkApi {
       encryption_salt: salt,
       image_url: imageUrl,
       active: active,
+      theme_id: themeId,
     };
 
     const res = await this.client.fetch("campaigns", null, campaignData, "POST");
 
-    const campaign = new Campaign({client: this.client, id: res['id'], name: res['name'], description: res['description'], imageUrl: res['image_url'], active: res['active'],});
+    const campaign = new Campaign({client: this.client, id: res['id'], name: res['name'], description: res['description'], imageUrl: res['image_url'], active: res['active'], themeId: res['theme_id']});
 
     if (typeof(this.client.publicKey) === "undefined") {
       // TODO should we handle this differently
@@ -288,14 +293,13 @@ interface GetEntriesParams {
   sorting: string | string[];
 }
 
-interface CampaignConstructorParams {
+interface CampaignConstructorParams extends Themeable {
   client: TipLinkClient;
   id: number;
   name: string;
   description: string;
   imageUrl: string;
   active: boolean;
-
 }
 
 export class Campaign extends TipLinkApi {
@@ -335,7 +339,7 @@ export class Campaign extends TipLinkApi {
       const result = {
         public_key: publicKey,
         encrypted_link: encryptedLink,
-        funding_txn: "funded", // TODO should we count it as funded when using api?
+        funding_txn: "funded",
       };
 
       return result;
@@ -356,6 +360,26 @@ export class Campaign extends TipLinkApi {
       })
       await this.client.fetch("analytics", null, analytics, "POST");
     }
+    return true;
+  }
+
+  public async hideEntries(tiplinks: TipLink[] | PublicKey[]): Promise<boolean> {
+    const publicKeys = tiplinks.map((tp) => tp instanceof TipLink ? tp.keypair.publicKey : tp);
+    const entries = {
+      publicKeys,
+      funding_txn: "",
+    };
+
+    await this.client.fetch(`campaigns/${this.id}/campaign_entries`, null, entries, "PUT");
+
+    const analytics = publicKeys.map((pk: PublicKey) => {
+      return {
+        event: "FUNDING_FAILED",
+        public_key: pk,
+      };
+    });
+    await this.client.fetch("analytics", null, analytics, "POST");
+
     return true;
   }
 
@@ -443,7 +467,7 @@ class DispenserActions extends TipLinkApi {
   public async create(params: CreateDispenserParams): Promise<Dispenser> {
     const useCaptcha = typeof(params) != "undefined" && typeof(params.useCaptcha) != "undefined" ? params.useCaptcha : true;
     const useFingerprint = typeof(params) != "undefined" && typeof(params.useFingerprint) != "undefined" ? params.useFingerprint : true;
-    const unlimitedClaims = typeof(params) != "undefined" && typeof(params.unlimitedClaims) != "undefined" ? params.unlimitedClaims : true;
+    const unlimitedClaims = typeof(params) != "undefined" && typeof(params.unlimitedClaims) != "undefined" ? params.unlimitedClaims : false;
     const active = typeof(params) != "undefined" && typeof(params.active) != "undefined" && params.active !== null ? params.active : true;
     const includedEntryIds: number[] = typeof(params) != "undefined" && typeof(params.includedEntryIds) != "undefined" && params.includedEntryIds !== null ? params.includedEntryIds : [];
     const excludedEntryIds: number[] = typeof(params) != "undefined" && typeof(params.excludedEntryIds) != "undefined" && params.excludedEntryIds !== null ? params.excludedEntryIds : [];
@@ -606,7 +630,7 @@ export enum DataHost {
 
 const IMAGE_HOST_DEFAULT = DataHost.Arweave;
 
-interface MintConstructorParams {
+interface MintConstructorParams extends Themeable {
   client: TipLinkClient;
 
   id: number;
@@ -640,7 +664,7 @@ interface MintConstructorParams {
   royaltiesDestination?: PublicKey | null;
 }
 
-interface MintCreateParams {
+interface MintCreateParams extends Themeable {
   campaignName: string;
   campaignDescription?: string;
 
@@ -747,6 +771,9 @@ class MintActions extends TipLinkApi {
     }
     if (params.campaignDescription) {
       formData.append(`mint[${index}][campaignDescription]`, params.campaignDescription);
+    }
+    if (params.themeId) {
+      formData.append(`mint[${index}][themeId]`, String(params.themeId));
     }
 
     if (params.mintName) {

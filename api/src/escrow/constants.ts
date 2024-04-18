@@ -1,14 +1,16 @@
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey } from "@solana/web3.js";
 
 export const ESCROW_PROGRAM_ID = new PublicKey(
-  '8TqqugH88U3fDEWeKHqBSxZKeqoRrXkdpy3ciX5GAruK'
+  "8TqqugH88U3fDEWeKHqBSxZKeqoRrXkdpy3ciX5GAruK"
 );
 
 export const TREASURY_PUBLIC_KEY = new PublicKey(
-  'BGZMcTjyTCbkRszC1CBpFpP9CbVh3Ah2ZhjzCsc9PsAr'
+  "BGZMcTjyTCbkRszC1CBpFpP9CbVh3Ah2ZhjzCsc9PsAr"
 );
 
-export const PDA_SEED = 'escrow';
+export const PDA_SEED = "escrow";
 
 export const DEPOSIT_URL_BASE =
-  'https://tiplink-mailer.vercel.app/depositor-url'; // TEMP
+  "https://tiplink-mailer.vercel.app/depositor-url"; // TEMP
+
+export const PRIO_FEES_LAMPORTS = 10_000;
