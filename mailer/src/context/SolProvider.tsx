@@ -6,6 +6,7 @@ import {
   useState,
   Dispatch,
   SetStateAction,
+  Suspense,
 } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
@@ -32,11 +33,7 @@ interface SolContextType {
 }
 export const SolContext = createContext<SolContextType>({});
 
-export default function SolProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}): JSX.Element {
+function SolProvider({ children }: { children: React.ReactNode }): JSX.Element {
   const [network, setNetwork] = useState(WalletAdapterNetwork.Mainnet);
   const searchParams = useSearchParams();
 
@@ -65,7 +62,6 @@ export default function SolProvider({
         title: "TipLink Mailer",
         clientId:
           process.env.NEXT_PUBLIC_TIPLINK_WALLET_ADAPTER_CLIENT_ID || "",
-        buildEnv: "development",
       }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,5 +82,17 @@ export default function SolProvider({
         </ConnectionProvider>
       </TipLinkWalletAutoConnect>
     </SolContext.Provider>
+  );
+}
+
+export default function SolProviderWrapper({
+  children,
+}: {
+  children: React.ReactNode;
+}): JSX.Element {
+  return (
+    <Suspense>
+      <SolProvider>{children}</SolProvider>
+    </Suspense>
   );
 }

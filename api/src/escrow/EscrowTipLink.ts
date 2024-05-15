@@ -129,6 +129,7 @@ export class EscrowTipLink {
     args: CreateWithReceiverArgs | CreateWithApiArgs
   ): Promise<EscrowTipLink> {
     const { connection, amount, toEmail, depositor, mint } = args;
+
     let { receiverTipLink } = args as CreateWithReceiverArgs;
     const { apiKey } = args as CreateWithApiArgs;
 

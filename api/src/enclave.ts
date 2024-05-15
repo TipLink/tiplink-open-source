@@ -1,6 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 
 import { EscrowTipLink, TipLink } from ".";
+import { isEmailValid } from "./email";
 
 const ENCLAVE_ENDPOINT =
   process.env.NEXT_PUBLIC_ENCLAVE_ENDPOINT_OVERRIDE ||
@@ -18,6 +19,10 @@ export async function createReceiverTipLink(
   apiKey: string,
   email: string
 ): Promise<PublicKey> {
+  if (!(await isEmailValid(email))) {
+    throw new Error("Invalid email address");
+  }
+
   const endpoint = `${ENCLAVE_ENDPOINT}/api/v1/generated-tiplinks/create`;
   const res = await fetch(endpoint, {
     method: "POST",
@@ -98,6 +103,10 @@ export async function mail(
   replyEmail?: string,
   replyName?: string
 ): Promise<void> {
+  if (!(await isEmailValid(toEmail))) {
+    throw new Error("Invalid email address");
+  }
+
   const url = `${ENCLAVE_ENDPOINT}/api/v1/email/send`;
   const body = {
     toEmail: toEmail,
@@ -172,6 +181,10 @@ export async function mailEscrow(
     toEmail = escrowTipLink.toEmail;
     depositorUrl = escrowTipLink.depositorUrl;
     receiverTipLink = escrowTipLink.receiverTipLink;
+  }
+
+  if (!(await isEmailValid(toEmail))) {
+    throw new Error("Invalid email address");
   }
 
   // Sanity check; error checking occurs in the enclave and on-chain program

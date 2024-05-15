@@ -79,11 +79,11 @@ onchainTest("Gets lamport EscrowTipLink", async () => {
     );
   }
 
-  const retrievedEscrowTipLink = await EscrowTipLink.get(
-    process.env.MAILER_API_KEY as string,
+  const retrievedEscrowTipLink = await EscrowTipLink.get({
     connection,
-    lamportPda
-  );
+    pda: lamportPda,
+    apiKey: process.env.MAILER_API_KEY as string
+  });
 
   // Check
   expect(retrievedEscrowTipLink).toStrictEqual(lamportEscrowTipLink);
@@ -112,11 +112,11 @@ onchainTest(
 
     // Check
     expect(depositorEndBalance).toBeGreaterThan(depositorStartBalance); // Exact amounts are unit tested in the program repo
-    const retrievedEscrowTipLink = await EscrowTipLink.get(
-      process.env.MAILER_API_KEY as string,
+    const retrievedEscrowTipLink = await EscrowTipLink.get({
       connection,
-      lamportPda
-    );
+      pda: lamportPda,
+      apiKey: process.env.MAILER_API_KEY as string
+    });
     expect(retrievedEscrowTipLink).toBeUndefined();
   },
   50000
@@ -177,11 +177,11 @@ onchainTest("Gets SPL EscrowTipLink", async () => {
     );
   }
 
-  const retrievedEscrowTipLink = await EscrowTipLink.get(
-    process.env.MAILER_API_KEY as string,
+  const retrievedEscrowTipLink = await EscrowTipLink.get({
     connection,
-    splPda
-  );
+    pda: splPda,
+    apiKey: process.env.MAILER_API_KEY as string
+  });
 
   // Check
   expect(retrievedEscrowTipLink).toStrictEqual(splEscrowTipLink);
@@ -217,11 +217,11 @@ onchainTest(
     expect(parseInt(depositorAtaEndBalance.value.amount)).toBeGreaterThan(
       parseInt(depositorAtaStartBalance.value.amount)
     ); // Exact amounts are unit tested in the program repo
-    const retrievedEscrowTipLink = await EscrowTipLink.get(
-      process.env.MAILER_API_KEY as string,
+    const retrievedEscrowTipLink = await EscrowTipLink.get({
       connection,
-      splPda
-    );
+      pda: splPda,
+      apiKey: process.env.MAILER_API_KEY as string
+    });
     expect(retrievedEscrowTipLink).toBeUndefined();
   },
   50000
