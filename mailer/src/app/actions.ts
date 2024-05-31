@@ -53,7 +53,7 @@ export async function mailAction(
 
 export async function mailEscrowAction(
   toEmail: string,
-  depositorUrl: string,
+  pda: string,
   receiverTipLinkPublicKey: string,
   toName?: string,
   replyEmail?: string,
@@ -64,7 +64,7 @@ export async function mailEscrowAction(
   await mailEscrow({
     apiKey: process.env.MAILER_API_KEY as string,
     toEmail,
-    depositorUrl: new URL(depositorUrl),
+    pda: new PublicKey(pda),
     receiverTipLink,
     toName,
     replyEmail,

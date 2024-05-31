@@ -148,7 +148,8 @@ interface MailEscrowWithObjArgs {
 
 /**
  * @param {string} apiKey - The API key to be used for the request.
- * @param {URL} depositorUrl - The TipLink URL received by the depositor.
+ * @param {string} toEmail - The email address of the recipient.
+ * @param {URL} pda - The public key of the escrow vault.
  * @param {PublicKey} receiverTipLink - The public key of the receiver TipLink.
  * @param {string} [toName] - Optional name of the recipient for the email.
  * @param {string} [replyEmail] - Optional email address for the recipient to reply to.
@@ -159,7 +160,7 @@ interface MailEscrowWithObjArgs {
 interface MailEscrowWithValsArgs {
   apiKey: string;
   toEmail: string;
-  depositorUrl: URL;
+  pda: PublicKey;
   receiverTipLink: PublicKey;
   toName?: string;
   replyEmail?: string;
@@ -174,12 +175,11 @@ export async function mailEscrow(
 ): Promise<void> {
   const { apiKey, toName, replyEmail, replyName } = args;
   const { escrowTipLink } = args as MailEscrowWithObjArgs;
-  let { toEmail, depositorUrl, receiverTipLink } =
-    args as MailEscrowWithValsArgs;
+  let { toEmail, pda, receiverTipLink } = args as MailEscrowWithValsArgs;
 
   if (escrowTipLink) {
     toEmail = escrowTipLink.toEmail;
-    depositorUrl = escrowTipLink.depositorUrl;
+    pda = escrowTipLink.pda;
     receiverTipLink = escrowTipLink.receiverTipLink;
   }
 
@@ -188,7 +188,7 @@ export async function mailEscrow(
   }
 
   // Sanity check; error checking occurs in the enclave and on-chain program
-  if (!toEmail || !depositorUrl || !receiverTipLink) {
+  if (!toEmail || !pda || !receiverTipLink) {
     throw new Error("Improper escrow.");
   }
 
@@ -198,7 +198,7 @@ export async function mailEscrow(
     toName,
     replyEmail,
     replyName,
-    depositorUrl: depositorUrl.toString(),
+    pda: pda.toString(),
     tiplinkPublicKey: receiverTipLink.toString(),
     receiverUrlOverride:
       process.env.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE || undefined,

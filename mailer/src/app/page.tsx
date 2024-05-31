@@ -213,7 +213,7 @@ export default function Home(): JSX.Element {
     // Mail
     await mailEscrowAction(
       escrowTipLink.toEmail,
-      escrowTipLink.depositorUrl.toString(),
+      escrowTipLink.pda.toString(),
       escrowTipLink.receiverTipLink.toString(),
       toName !== "" ? toName : undefined,
       replyEmail !== "" ? replyEmail : undefined,
@@ -265,7 +265,7 @@ export default function Home(): JSX.Element {
       // Mail
       await mailEscrowAction(
         escrowTipLink.toEmail,
-        escrowTipLink.depositorUrl.toString(),
+        escrowTipLink.pda.toString(),
         escrowTipLink.receiverTipLink.toString(),
         toName !== "" ? toName : undefined,
         replyEmail !== "" ? replyEmail : undefined,
