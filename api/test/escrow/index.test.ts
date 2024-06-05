@@ -9,7 +9,13 @@ import {
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 
 import { EscrowTipLink } from "../../src";
-import { getDepositorKeypair, getConnection, getUsdcMint } from "./helpers";
+import {
+  getDepositorKeypair,
+  getConnection,
+  getUsdcMint,
+  logDepositorInfo,
+  insertPrioFeesIxs,
+} from "./helpers";
 
 export const onchainTest =
   process.env.ONCHAIN_TESTS === "true" ? test : test.skip;
@@ -22,18 +28,24 @@ let splPda: PublicKey;
 
 beforeEach((done) => {
   if (process.env.ONCHAIN_TESTS === "true") {
-    // Sleep 3 seconds to avoid RPC throttling
+    // Sleep 1 second to avoid RPC throttling
     setTimeout(() => {
       done();
-    }, 3000);
+    }, 1000);
   } else {
     done();
   }
 });
 
+beforeAll(async () => {
+  if (process.env.ONCHAIN_TESTS === "true") {
+    await logDepositorInfo();
+  }
+});
+
 onchainTest("Creates lamport EscrowTipLink", async () => {
   const amount = 20000;
-  const toEmail = "example@email.com";
+  const toEmail = "jackson@tiplink.io";
   const depositor = (await getDepositorKeypair()).publicKey;
   const connection = getConnection();
 
@@ -59,6 +71,7 @@ onchainTest(
     const connection = getConnection();
 
     const tx = await lamportEscrowTipLink.depositTx(connection);
+    insertPrioFeesIxs(tx);
     await sendAndConfirmTransaction(connection, tx, [depositorKeypair]);
 
     // Check
@@ -82,7 +95,7 @@ onchainTest("Gets lamport EscrowTipLink", async () => {
   const retrievedEscrowTipLink = await EscrowTipLink.get({
     connection,
     pda: lamportPda,
-    apiKey: process.env.MAILER_API_KEY as string
+    apiKey: process.env.MAILER_API_KEY as string,
   });
 
   // Check
@@ -104,6 +117,7 @@ onchainTest(
       depositorKeypair.publicKey,
       depositorKeypair.publicKey
     );
+    insertPrioFeesIxs(tx);
     await sendAndConfirmTransaction(connection, tx, [depositorKeypair]);
 
     const depositorEndBalance = await connection.getBalance(
@@ -115,7 +129,7 @@ onchainTest(
     const retrievedEscrowTipLink = await EscrowTipLink.get({
       connection,
       pda: lamportPda,
-      apiKey: process.env.MAILER_API_KEY as string
+      apiKey: process.env.MAILER_API_KEY as string,
     });
     expect(retrievedEscrowTipLink).toBeUndefined();
   },
@@ -127,7 +141,7 @@ onchainTest("Creates SPL EscrowTipLink", async () => {
   const usdcMint = await getUsdcMint();
 
   const amount = 1;
-  const toEmail = "example@email.com";
+  const toEmail = "jackson@tiplink.io";
   const depositor = (await getDepositorKeypair()).publicKey;
 
   splEscrowTipLink = await EscrowTipLink.create({
@@ -157,6 +171,7 @@ onchainTest(
     );
 
     const tx = await splEscrowTipLink.depositTx(connection);
+    insertPrioFeesIxs(tx);
     await sendAndConfirmTransaction(connection, tx, [depositorKeypair]);
 
     // Check
@@ -180,7 +195,7 @@ onchainTest("Gets SPL EscrowTipLink", async () => {
   const retrievedEscrowTipLink = await EscrowTipLink.get({
     connection,
     pda: splPda,
-    apiKey: process.env.MAILER_API_KEY as string
+    apiKey: process.env.MAILER_API_KEY as string,
   });
 
   // Check
@@ -207,6 +222,7 @@ onchainTest(
       depositorKeypair.publicKey,
       depositorKeypair.publicKey
     );
+    insertPrioFeesIxs(tx);
     await sendAndConfirmTransaction(connection, tx, [depositorKeypair]);
 
     const depositorAtaEndBalance = await connection.getTokenAccountBalance(
@@ -220,7 +236,7 @@ onchainTest(
     const retrievedEscrowTipLink = await EscrowTipLink.get({
       connection,
       pda: splPda,
-      apiKey: process.env.MAILER_API_KEY as string
+      apiKey: process.env.MAILER_API_KEY as string,
     });
     expect(retrievedEscrowTipLink).toBeUndefined();
   },

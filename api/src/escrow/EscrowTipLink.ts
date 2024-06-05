@@ -18,6 +18,7 @@ interface CreateWithReceiverArgs {
   depositor: PublicKey;
   receiverTipLink: PublicKey;
   mint?: Mint;
+  depositorTa?: PublicKey;
 }
 
 interface CreateWithApiArgs {
@@ -27,6 +28,7 @@ interface CreateWithApiArgs {
   depositor: PublicKey;
   apiKey: string;
   mint?: Mint;
+  depositorTa?: PublicKey;
 }
 
 interface GetaWithReceiverArgs {
@@ -87,6 +89,7 @@ export class EscrowTipLink {
 
   // Optional
   mint?: Mint;
+  depositorTa?: PublicKey;
 
   get depositorUrl(): URL {
     // Sanity check; error checking occurs in the enclave and on-chain program
@@ -111,7 +114,8 @@ export class EscrowTipLink {
     depositor: PublicKey,
     escrowId: PublicKey,
     pda: PublicKey,
-    mint?: Mint
+    mint?: Mint,
+    depositorTa?: PublicKey
   ) {
     this.toEmail = toEmail;
     this.receiverTipLink = receiverTipLink;
@@ -120,6 +124,7 @@ export class EscrowTipLink {
     this.escrowId = escrowId;
     this.pda = pda;
     this.mint = mint;
+    this.depositorTa = depositorTa;
   }
 
   /**
@@ -128,7 +133,7 @@ export class EscrowTipLink {
   static async create(
     args: CreateWithReceiverArgs | CreateWithApiArgs
   ): Promise<EscrowTipLink> {
-    const { connection, amount, toEmail, depositor, mint } = args;
+    const { connection, amount, toEmail, depositor, mint, depositorTa } = args;
 
     let { receiverTipLink } = args as CreateWithReceiverArgs;
     const { apiKey } = args as CreateWithApiArgs;
@@ -156,7 +161,8 @@ export class EscrowTipLink {
       depositor,
       escrowId,
       pda,
-      mint
+      mint,
+      depositorTa
     );
   }
 
@@ -250,11 +256,13 @@ export class EscrowTipLink {
       this.depositor
     );
 
+    const dTa = this.depositorTa || depositorAta;
+
     const tx = await tiplinkEscrowProgram.methods
       .initializeSpl(new BN(this.amount.toString()), escrowId)
       .accounts({
         depositor: this.depositor,
-        depositorTa: depositorAta,
+        depositorTa: dTa,
         pda,
         pdaAta,
         tiplink: this.receiverTipLink,

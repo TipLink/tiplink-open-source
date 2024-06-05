@@ -4,7 +4,8 @@ import { encode as b58encode, decode as b58decode } from "bs58";
 
 const DEFAULT_TIPLINK_KEYLENGTH = 12;
 const DEFAULT_HASHLESS_TIPLINK_KEYLENGTH = 16; // 16 bytes = 128 bits
-export const TIPLINK_ORIGIN = process.env.TIPLINK_ORIGIN_OVERRIDE || "https://tiplink.io";
+export const TIPLINK_ORIGIN =
+  process.env.TIPLINK_ORIGIN_OVERRIDE || "https://tiplink.io";
 const TIPLINK_PATH = "/i";
 
 const VERSION_DELIMITER = "_";
@@ -132,8 +133,14 @@ import {
   EscrowTipLink,
   getEscrowReceiverTipLink,
   PRIO_FEES_LAMPORTS,
+  ESCROW_PROGRAM_ID,
 } from "./escrow";
-export { EscrowTipLink, getEscrowReceiverTipLink, PRIO_FEES_LAMPORTS };
+export {
+  EscrowTipLink,
+  getEscrowReceiverTipLink,
+  PRIO_FEES_LAMPORTS,
+  ESCROW_PROGRAM_ID,
+};
 
 import {
   mail,

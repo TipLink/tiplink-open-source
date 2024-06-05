@@ -247,6 +247,18 @@ export type TiplinkEscrow = {
       }
     }
   ],
+  "events": [
+    {
+      "name": "DepositEvent",
+      "fields": [
+        {
+          "name": "pda",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    }
+  ],
   "errors": [
     {
       "code": 6000,
@@ -508,6 +520,18 @@ export const IDL: TiplinkEscrow = {
           }
         ]
       }
+    }
+  ],
+  "events": [
+    {
+      "name": "DepositEvent",
+      "fields": [
+        {
+          "name": "pda",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
