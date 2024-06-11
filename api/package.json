@@ -1,13 +1,13 @@
 {
   "name": "@tiplink/api",
-  "version": "0.1.11",
+  "version": "0.2.4",
   "description": "Api for creating and sending TipLinks",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "dev": "tsc --watch",
     "test": "jest",
-    "test:include-onchain-tests": "ONCHAIN_TESTS=true jest",
+    "test:include-onchain-tests": "ONCHAIN_TESTS=true jest --runInBand",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "prepublishOnly": "npm run build && npm test && npm run lint"
@@ -46,7 +46,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/TipLink/tiplink-open-source"
+    "url": "https://github.com/TipLink/tiplink-open-source/tree/main/api"
   },
   "keywords": [
     "crypto",

@@ -1,6 +1,6 @@
 export const VERIFY_EMAIL_ENDPOINT =
   process.env.NEXT_PUBLIC_VERIFY_EMAIL_ENDPOINT_OVERRIDE ||
-  "https://tiplink.io/api/verify_email";
+  "https://email-verify.tiplink.tech/verify-email";
 
 interface VerifyEmailRes {
   validFormat: boolean;

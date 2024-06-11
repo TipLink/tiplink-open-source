@@ -6,8 +6,16 @@ import {
   mailEscrow,
   createReceiverTipLink,
   getReceiverEmail,
+  EscrowTipLink,
+  getAllEscrowActions,
+  EscrowActionType,
 } from "@tiplink/api";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Connection } from "@solana/web3.js";
+
+const CONNECTION = new Connection(
+  process.env.NEXT_PUBLIC_SOLANA_MAINNET_RPC as string,
+  "confirmed",
+);
 
 export async function createReceiverTipLinkAction(
   toEmail: string,
@@ -20,16 +28,47 @@ export async function createReceiverTipLinkAction(
 }
 
 export async function getReceiverEmailAction(
-  receiverTipLinkPublicKey: string,
-): Promise<string> {
-  const receiverTipLink = new PublicKey(receiverTipLinkPublicKey);
+  pda: string,
+): Promise<string | undefined> {
+  const pdaPubKey = new PublicKey(pda);
 
-  const receiverEmail = await getReceiverEmail(
-    process.env.MAILER_API_KEY as string,
-    receiverTipLink,
-  );
+  const escrowTipLink = await EscrowTipLink.get({
+    connection: CONNECTION,
+    pda: pdaPubKey,
+    apiKey: process.env.MAILER_API_KEY as string,
+  });
 
-  return receiverEmail;
+  if (escrowTipLink) {
+    const email = await getReceiverEmail(
+      process.env.MAILER_API_KEY as string,
+      escrowTipLink.receiverTipLink,
+    );
+
+    return email;
+  }
+
+  // Escrow isn't live but might have been claimed. We'll check its history.
+
+  // The following function might take a while if the PDA has been spammed with
+  // transactions that it needs to sift through. We recommend running this on a
+  // backend and cache-ing the result.
+  const actions = await getAllEscrowActions(CONNECTION, pdaPubKey);
+  // eslint-disable-next-line no-restricted-syntax
+  for (const action of actions) {
+    if (
+      action.type === EscrowActionType.DepositLamport ||
+      action.type === EscrowActionType.DepositSpl
+    ) {
+      // eslint-disable-next-line no-await-in-loop
+      const email = await getReceiverEmail(
+        process.env.MAILER_API_KEY as string,
+        action.receiverTipLink,
+      );
+      return email;
+    }
+  }
+
+  return undefined;
 }
 
 export async function mailAction(
@@ -53,7 +92,7 @@ export async function mailAction(
 
 export async function mailEscrowAction(
   toEmail: string,
-  depositorUrl: string,
+  pda: string,
   receiverTipLinkPublicKey: string,
   toName?: string,
   replyEmail?: string,
@@ -64,7 +103,7 @@ export async function mailEscrowAction(
   await mailEscrow({
     apiKey: process.env.MAILER_API_KEY as string,
     toEmail,
-    depositorUrl: new URL(depositorUrl),
+    pda: new PublicKey(pda),
     receiverTipLink,
     toName,
     replyEmail,

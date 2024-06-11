@@ -10,7 +10,6 @@ import {
   DEPOSIT_URL_BASE,
 } from "./constants";
 import { createReceiverTipLink, getReceiverEmail } from "../enclave";
-import { isEmailValid } from "../email";
 
 interface CreateWithReceiverArgs {
   connection: Connection;
@@ -19,6 +18,8 @@ interface CreateWithReceiverArgs {
   depositor: PublicKey;
   receiverTipLink: PublicKey;
   mint?: Mint;
+  depositorTa?: PublicKey;
+  allowDepositorOffCurve?: boolean;
 }
 
 interface CreateWithApiArgs {
@@ -28,9 +29,11 @@ interface CreateWithApiArgs {
   depositor: PublicKey;
   apiKey: string;
   mint?: Mint;
+  depositorTa?: PublicKey;
+  allowDepositorOffCurve?: boolean;
 }
 
-interface GetaWithReceiverArgs {
+interface GetWithReceiverArgs {
   connection: Connection;
   pda: PublicKey;
   receiverEmail: string;
@@ -79,7 +82,7 @@ export async function getEscrowReceiverTipLink(
  */
 export class EscrowTipLink {
   // Required
-  toEmail: string;
+  toEmail: string; // This can be an empty string if passed in during EscrowTipLink.get
   receiverTipLink: PublicKey;
   amount: number;
   depositor: PublicKey;
@@ -88,6 +91,7 @@ export class EscrowTipLink {
 
   // Optional
   mint?: Mint;
+  depositorTa?: PublicKey;
 
   get depositorUrl(): URL {
     // Sanity check; error checking occurs in the enclave and on-chain program
@@ -112,7 +116,8 @@ export class EscrowTipLink {
     depositor: PublicKey,
     escrowId: PublicKey,
     pda: PublicKey,
-    mint?: Mint
+    mint?: Mint,
+    depositorTa?: PublicKey
   ) {
     this.toEmail = toEmail;
     this.receiverTipLink = receiverTipLink;
@@ -121,19 +126,26 @@ export class EscrowTipLink {
     this.escrowId = escrowId;
     this.pda = pda;
     this.mint = mint;
+    this.depositorTa = depositorTa;
   }
 
   /**
    * Creates an EscrowTipLink instance to be deposited.
+   *
+   * @param depositorTa - Overrides for non-ATA cases
    */
   static async create(
     args: CreateWithReceiverArgs | CreateWithApiArgs
   ): Promise<EscrowTipLink> {
-    const { connection, amount, toEmail, depositor, mint } = args;
-
-    if (!(await isEmailValid(toEmail))) {
-      throw new Error("Invalid email address");
-    }
+    const {
+      connection,
+      amount,
+      toEmail,
+      depositor,
+      mint,
+      depositorTa,
+      allowDepositorOffCurve,
+    } = args;
 
     let { receiverTipLink } = args as CreateWithReceiverArgs;
     const { apiKey } = args as CreateWithApiArgs;
@@ -154,6 +166,15 @@ export class EscrowTipLink {
       tiplinkEscrowProgram.programId
     );
 
+    let dTa = depositorTa;
+    if (!dTa && mint) {
+      dTa = await getAssociatedTokenAddress(
+        mint.address,
+        depositor,
+        !!allowDepositorOffCurve
+      );
+    }
+
     return new EscrowTipLink(
       toEmail,
       receiverTipLink,
@@ -161,18 +182,23 @@ export class EscrowTipLink {
       depositor,
       escrowId,
       pda,
-      mint
+      mint,
+      dTa
     );
   }
 
   /**
    * Creates an EscrowTipLink instance from a deposited, on-chain escrow.
+   *
+   * To get data for withdrawn / closed escrows, use `interpretIx`,
+   * `interpretTx`, or `getAllEscrowActions`, the last of which should be called
+   * on backends and cached for performance.
    */
   static async get(
-    args: GetaWithReceiverArgs | GetWithApiArgs
+    args: GetWithReceiverArgs | GetWithApiArgs
   ): Promise<EscrowTipLink | undefined> {
     const { connection, pda } = args;
-    let { receiverEmail } = args as GetaWithReceiverArgs;
+    let { receiverEmail } = args as GetWithReceiverArgs;
     const { apiKey } = args as GetWithApiArgs;
 
     const escrowProgram = new Program(
@@ -201,9 +227,14 @@ export class EscrowTipLink {
     }
 
     const receiverTipLink = pdaAccount.tiplink;
-    if (!receiverEmail) {
+    // Empty string can be passed in for withdraw without email
+    if (receiverEmail === undefined) {
       receiverEmail = await getReceiverEmail(apiKey, receiverTipLink);
     }
+
+    // NOTE: We aren't able to deterministically get depositor TA from here
+    // because it might have been overriden and not ATA. The chain history
+    // has it if needed.
 
     return new EscrowTipLink(
       receiverEmail,
@@ -243,23 +274,21 @@ export class EscrowTipLink {
     if (!this.mint) {
       throw new Error("Attempted to deposit SPL without mint set");
     }
+    if (!this.depositorTa) {
+      throw new Error("Attempted to deposit SPL without depositorTa set");
+    }
 
     const pdaAta = await getAssociatedTokenAddress(
       this.mint.address,
       pda,
       true
     );
-    // TODO: Support non-ATA for depositor
-    const depositorAta = await getAssociatedTokenAddress(
-      this.mint.address,
-      this.depositor
-    );
 
     const tx = await tiplinkEscrowProgram.methods
       .initializeSpl(new BN(this.amount.toString()), escrowId)
       .accounts({
         depositor: this.depositor,
-        depositorTa: depositorAta,
+        depositorTa: this.depositorTa,
         pda,
         pdaAta,
         tiplink: this.receiverTipLink,
@@ -308,7 +337,8 @@ export class EscrowTipLink {
   private async withdrawSplTx(
     tiplinkEscrowProgram: Program<TiplinkEscrow>,
     authority: PublicKey,
-    dest: PublicKey
+    dest: PublicKey,
+    allowDestOffCurve = false
   ): Promise<Transaction> {
     // Sanity check; error checking occurs in the enclave and on-chain program
     if (!this.mint) {
@@ -321,7 +351,13 @@ export class EscrowTipLink {
       this.pda,
       true
     );
-    const destAta = await getAssociatedTokenAddress(this.mint.address, dest);
+
+    // TODO: Support non-ATA
+    const destAta = await getAssociatedTokenAddress(
+      this.mint.address,
+      dest,
+      allowDestOffCurve
+    );
 
     const tx = await tiplinkEscrowProgram.methods
       .withdrawSpl()
@@ -338,10 +374,15 @@ export class EscrowTipLink {
     return tx;
   }
 
+  /**
+   * @param dest - The owner account, *not* the token account (if an SPL escrow)
+   * @param allowDestOffCurve - Allow calculated ATA to be off-curve (if an SPL escrow)
+   */
   async withdrawTx(
     connection: Connection,
     authority: PublicKey,
-    dest: PublicKey
+    dest: PublicKey,
+    allowDestOffCurve = false
   ): Promise<Transaction> {
     const tiplinkEscrowProgram = new Program(
       IDL,
@@ -350,7 +391,12 @@ export class EscrowTipLink {
     );
 
     if (this.mint) {
-      return this.withdrawSplTx(tiplinkEscrowProgram, authority, dest);
+      return this.withdrawSplTx(
+        tiplinkEscrowProgram,
+        authority,
+        dest,
+        allowDestOffCurve
+      );
     }
     return this.withdrawLamportTx(tiplinkEscrowProgram, authority, dest);
   }

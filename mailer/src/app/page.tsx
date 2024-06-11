@@ -1,6 +1,3 @@
-// TEMP: Code based on Tailwind example which doesn't conform to a11y standards
-/* eslint-disable jsx-a11y/label-has-associated-control */
-
 "use client";
 
 import dynamic from "next/dynamic";
@@ -49,7 +46,7 @@ export default function Home(): JSX.Element {
   const [replyEmail, setReplyEmail] = useState("");
   const [amount, setAmount] = useState("");
   const [isEscrow, setIsEscrow] = useState(false);
-  const [token, setToken] = useState("SOL");
+  const [mintSymbol, setMintSymbol] = useState("SOL");
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const { sendWalletTx } = useTxSender();
@@ -216,7 +213,7 @@ export default function Home(): JSX.Element {
     // Mail
     await mailEscrowAction(
       escrowTipLink.toEmail,
-      escrowTipLink.depositorUrl.toString(),
+      escrowTipLink.pda.toString(),
       escrowTipLink.receiverTipLink.toString(),
       toName !== "" ? toName : undefined,
       replyEmail !== "" ? replyEmail : undefined,
@@ -268,7 +265,7 @@ export default function Home(): JSX.Element {
       // Mail
       await mailEscrowAction(
         escrowTipLink.toEmail,
-        escrowTipLink.depositorUrl.toString(),
+        escrowTipLink.pda.toString(),
         escrowTipLink.receiverTipLink.toString(),
         toName !== "" ? toName : undefined,
         replyEmail !== "" ? replyEmail : undefined,
@@ -302,20 +299,27 @@ export default function Home(): JSX.Element {
       let sig = "";
 
       try {
-        if (token === "SOL") {
+        if (mintSymbol === "SOL") {
           if (!isEscrow) {
             sig = await sendTipLink();
           } else {
             sig = await sendEscrowTipLink();
           }
-        } else {
-          const mintAddress =
-            token === "USDC" ? USDC_PUBLIC_KEY : BONK_PUBLIC_KEY;
+        } else if (mintSymbol === "USDC") {
           if (!isEscrow) {
-            sig = await sendSplTipLink(mintAddress);
+            sig = await sendSplTipLink(USDC_PUBLIC_KEY);
           } else {
-            sig = await sendEscrowSplTipLink(mintAddress);
+            sig = await sendEscrowSplTipLink(USDC_PUBLIC_KEY);
           }
+        } else if (mintSymbol === "Bonk") {
+          if (!isEscrow) {
+            sig = await sendSplTipLink(BONK_PUBLIC_KEY);
+          } else {
+            sig = await sendEscrowSplTipLink(BONK_PUBLIC_KEY);
+          }
+        } else {
+          // For this example we'll just support SOL, USDC, and BONK
+          throw new Error(`Unsupported mint: ${mintSymbol}`);
         }
 
         setIsSuccess(true);
@@ -333,7 +337,7 @@ export default function Home(): JSX.Element {
     },
     [
       isEscrow,
-      token,
+      mintSymbol,
       sendTipLink,
       sendSplTipLink,
       sendEscrowTipLink,
@@ -360,15 +364,16 @@ export default function Home(): JSX.Element {
     msg = <p className="text-gray-800 font-bold">Connect wallet!</p>;
   }
 
+  // We'll add some limits to be safe
   let max;
   let min;
-  if (token === "SOL") {
+  if (mintSymbol === "SOL") {
     max = "0.2";
     min = "0.0001";
-  } else if (token === "USDC") {
+  } else if (mintSymbol === "USDC") {
     max = "20";
     min = "0.01";
-  } else if (token === "Bonk") {
+  } else if (mintSymbol === "Bonk") {
     max = "100000";
     min = "50";
   }
@@ -473,8 +478,9 @@ export default function Home(): JSX.Element {
               <select
                 className="block appearance-none w-full bg-gray-200 border border-gray-200 text-gray-700 py-3 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-blue-500"
                 id="token"
-                onChange={(e) => setToken(e.target.value)}
+                onChange={(e) => setMintSymbol(e.target.value)}
               >
+                {/* For this example we'll just support SOL, USDC, and BONK */}
                 <option>SOL</option>
                 <option>USDC</option>
                 <option>Bonk</option>

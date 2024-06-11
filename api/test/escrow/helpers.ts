@@ -2,7 +2,15 @@ import "dotenv/config";
 
 import { mnemonicToSeedSync } from "bip39";
 
-import { Keypair, Connection, PublicKey } from "@solana/web3.js";
+import {
+  Keypair,
+  Connection,
+  PublicKey,
+  TransactionInstruction,
+  ComputeBudgetProgram,
+  Transaction,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
 import { getMint, Mint } from "@solana/spl-token";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 
@@ -93,4 +101,58 @@ export async function getDepositorKeypair(
   }
 
   return depositorKeypair;
+}
+
+export async function logDepositorInfo() {
+  const depositorKeypair = await getDepositorKeypair();
+  const conn = getConnection();
+  const depositorBalance =
+    (await conn.getBalance(depositorKeypair.publicKey)) / LAMPORTS_PER_SOL;
+  const mint = await getUsdcMint();
+  const depositorAta = await getAssociatedTokenAddress(
+    mint.address,
+    depositorKeypair.publicKey
+  );
+  const depositorAtaBalance = await conn.getTokenAccountBalance(depositorAta);
+  const depositorAtaBalanceDecimals =
+    parseInt(depositorAtaBalance.value.amount) / 10 ** mint.decimals;
+
+  console.log(`
+    Depositor Info:
+    Public Key: ${depositorKeypair.publicKey.toBase58()}
+    SOL balance: ${depositorBalance}
+    USDC balance: ${depositorAtaBalanceDecimals}
+  `);
+}
+
+// The following is from the /tiplink folder. Perhaps we should make these publicly
+// available in the API and share. We use this for our on-chain unit tests here.
+
+const COMPUTE_UNIT_PRICE = 200000;
+const COMPUTE_UNIT_LIMIT = 200000;
+
+export function getPrioFeesIxs(
+  computeUnitPrice: number,
+  computeUnitLimit: number
+): TransactionInstruction[] {
+  return [
+    ComputeBudgetProgram.setComputeUnitPrice({
+      microLamports: computeUnitPrice,
+    }),
+    ComputeBudgetProgram.setComputeUnitLimit({
+      units: computeUnitLimit,
+    }),
+  ];
+}
+
+/**
+ * @remarks Edits txn in place
+ */
+export function insertPrioFeesIxs(
+  tx: Transaction,
+  cuPrice = COMPUTE_UNIT_PRICE,
+  cuLimit = COMPUTE_UNIT_LIMIT
+) {
+  const ixs = getPrioFeesIxs(cuPrice, cuLimit);
+  tx.instructions.unshift(...ixs);
 }

@@ -17,4 +17,4 @@ export const BONK_PUBLIC_KEY = new PublicKey(
   "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
 );
 
-export const DEST_DUST = 10020 * 2; // TEMP: Incorporate into SDK with more exact amounts
+export const DEST_DUST = 10020 * 2; // TODO: Incorporate into SDK with more exact amounts
