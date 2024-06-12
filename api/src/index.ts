@@ -4,8 +4,11 @@ import { encode as b58encode, decode as b58decode } from "bs58";
 
 const DEFAULT_TIPLINK_KEYLENGTH = 12;
 const DEFAULT_HASHLESS_TIPLINK_KEYLENGTH = 16; // 16 bytes = 128 bits
+const DEFAULT_ORIGIN = "https://tiplink.io";
 export const TIPLINK_ORIGIN =
-  process.env.TIPLINK_ORIGIN_OVERRIDE || "https://tiplink.io";
+  typeof process === "undefined"
+    ? DEFAULT_ORIGIN
+    : process?.env?.TIPLINK_ORIGIN_OVERRIDE ?? DEFAULT_ORIGIN;
 const TIPLINK_PATH = "/i";
 
 const VERSION_DELIMITER = "_";
@@ -20,7 +23,7 @@ const getSodium = async () => {
 const kdf = async (
   fullLength: number,
   pwShort: Uint8Array,
-  salt: Uint8Array
+  salt: Uint8Array,
 ) => {
   const sodium = await getSodium();
   return sodium.crypto_pwhash(
@@ -29,7 +32,7 @@ const kdf = async (
     salt,
     sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
     sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
-    sodium.crypto_pwhash_ALG_DEFAULT
+    sodium.crypto_pwhash_ALG_DEFAULT,
   );
 };
 
@@ -128,6 +131,9 @@ export class TipLink {
 
 import { TipLinkClient } from "./client";
 export { TipLinkClient };
+
+import { attachTheme } from "./lib/themes";
+export { attachTheme };
 
 import {
   EscrowTipLink,

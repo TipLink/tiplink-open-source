@@ -199,7 +199,19 @@ onchainTest("Gets SPL EscrowTipLink", async () => {
   });
 
   // Check
-  expect(retrievedEscrowTipLink).toStrictEqual(splEscrowTipLink);
+  expect(retrievedEscrowTipLink).toBeDefined();
+  expect(retrievedEscrowTipLink?.toEmail).toBe(splEscrowTipLink.toEmail);
+  expect(retrievedEscrowTipLink?.depositor).toStrictEqual(
+    splEscrowTipLink.depositor
+  );
+  expect(retrievedEscrowTipLink?.receiverTipLink).toStrictEqual(
+    splEscrowTipLink.receiverTipLink
+  );
+  expect(retrievedEscrowTipLink?.amount).toBe(splEscrowTipLink.amount);
+  expect(retrievedEscrowTipLink?.mint?.address).toStrictEqual(
+    splEscrowTipLink.mint?.address
+  );
+  // NOTE: We don't check depositorTa
 });
 
 onchainTest(

@@ -1,8 +1,15 @@
 import { nanoid } from "nanoid";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
-import { TipLink, TIPLINK_ORIGIN } from './index';
-import { generateRandomSalt, generateKey, encrypt, encryptPublicKey, decrypt } from './crypto';
+import { TipLink, TIPLINK_ORIGIN } from "./index";
+import { Themeable, attachTheme } from "./lib/themes";
+import {
+  generateRandomSalt,
+  generateKey,
+  encrypt,
+  encryptPublicKey,
+  decrypt,
+} from "./crypto";
 
 export { decrypt };
 
@@ -29,29 +36,43 @@ export class TipLinkClient {
   campaigns: CampaignActions;
   mints: MintActions;
 
-  public constructor(apiKey: string, version=1) {
+  public constructor(apiKey: string, version = 1) {
     this.apiKey = apiKey;
     this.version = version;
-    this.campaigns = new CampaignActions({client: this});
-    this.mints = new MintActions({client: this});
+    this.campaigns = new CampaignActions({ client: this });
+    this.mints = new MintActions({ client: this });
   }
 
-  public static async init(apiKey: string, version=1): Promise<TipLinkClient> {
+  public static async init(
+    apiKey: string,
+    version = 1,
+  ): Promise<TipLinkClient> {
     const client = new TipLinkClient(apiKey, version);
 
     try {
       const apiKeyRes = await client.fetch("api_key");
-      client.id = apiKeyRes['account']['id'];
-      client.publicKey = apiKeyRes['account']['public_key'];
+      client.id = apiKeyRes["account"]["id"];
+      client.publicKey = apiKeyRes["account"]["public_key"];
     } catch (err) {
-      throw Error("Api_key error: retriving account public_key encryption info");
+      throw Error(
+        "Api_key error: retriving account public_key encryption info",
+      );
     }
 
     return client;
   }
 
   // TODO type return?
-  public async fetch(endpoint: string, args: Record<string, ArgT> | null = null, body: Record<string, unknown> | Array<Record<string, unknown>> | FormData | null = null, verb="GET") {
+  public async fetch(
+    endpoint: string,
+    args: Record<string, ArgT> | null = null,
+    body:
+      | Record<string, unknown>
+      | Array<Record<string, unknown>>
+      | FormData
+      | null = null,
+    verb = "GET",
+  ) {
     const url = new URL(endpoint, `${API_URL_BASE}/v${this.version}/`);
 
     if (args !== null) {
@@ -70,8 +91,10 @@ export class TipLinkClient {
     if (body !== null) {
       if (body instanceof FormData) {
         params.body = body;
-      } else { // json body
-        (params.headers as Record<string, string>)["Content-Type"] = "application/json";
+      } else {
+        // json body
+        (params.headers as Record<string, string>)["Content-Type"] =
+          "application/json";
         params.body = JSON.stringify(body);
       }
     }
@@ -92,10 +115,6 @@ class TipLinkApi {
   public constructor(client: TipLinkClient) {
     this.client = client;
   }
-}
-
-interface Themeable {
-  themeId?: number;
 }
 
 interface CampaignCreateParams extends Themeable {
@@ -157,7 +176,7 @@ enum Rate {
   MONTHLY,
   YEARLY,
   FOREVER,
-  MILLISECOND
+  MILLISECOND,
 }
 
 interface RateLimit {
@@ -179,11 +198,26 @@ class CampaignActions extends TipLinkApi {
   }
 
   public async create(params: CampaignCreateParams): Promise<Campaign> {
-    const name = typeof(params) != "undefined" && typeof(params.name) != "undefined" ? params.name : "";
-    const description = typeof(params) != "undefined" && typeof(params.description) != "undefined" ? params.description : "";
-    const imageUrl = typeof(params) != "undefined" && typeof(params.imageUrl) != "undefined" ? params.imageUrl : "";
-    const active = typeof(params) != "undefined" && typeof(params.active) != "undefined" ? params.active : true;
-    const themeId = typeof(params) != "undefined" && typeof(params.themeId) != "undefined" ? params.themeId : null;
+    const name =
+      typeof params != "undefined" && typeof params.name != "undefined"
+        ? params.name
+        : "";
+    const description =
+      typeof params != "undefined" && typeof params.description != "undefined"
+        ? params.description
+        : "";
+    const imageUrl =
+      typeof params != "undefined" && typeof params.imageUrl != "undefined"
+        ? params.imageUrl
+        : "";
+    const active =
+      typeof params != "undefined" && typeof params.active != "undefined"
+        ? params.active
+        : true;
+    const themeId =
+      typeof params != "undefined" && typeof params.themeId != "undefined"
+        ? params.themeId
+        : null;
 
     const salt = generateRandomSalt();
 
@@ -198,11 +232,24 @@ class CampaignActions extends TipLinkApi {
       theme_id: themeId,
     };
 
-    const res = await this.client.fetch("campaigns", null, campaignData, "POST");
+    const res = await this.client.fetch(
+      "campaigns",
+      null,
+      campaignData,
+      "POST",
+    );
 
-    const campaign = new Campaign({client: this.client, id: res['id'], name: res['name'], description: res['description'], imageUrl: res['image_url'], active: res['active'], themeId: res['theme_id']});
+    const campaign = new Campaign({
+      client: this.client,
+      id: res["id"],
+      name: res["name"],
+      description: res["description"],
+      imageUrl: res["image_url"],
+      active: res["active"],
+      themeId: res["theme_id"],
+    });
 
-    if (typeof(this.client.publicKey) === "undefined") {
+    if (typeof this.client.publicKey === "undefined") {
       // TODO should we handle this differently
       throw "Unable to do server handshake with encryption key";
     } else {
@@ -218,16 +265,21 @@ class CampaignActions extends TipLinkApi {
         encrypted_campaign_key: encryptedCampaignKey,
       };
 
-      await this.client.fetch(`campaigns/${campaign.id}/campaign_account_joins`, null, keyData, "POST");
+      await this.client.fetch(
+        `campaigns/${campaign.id}/campaign_account_joins`,
+        null,
+        keyData,
+        "POST",
+      );
 
-      if(salt !== res['encryption_salt']) {
+      if (salt !== res["encryption_salt"]) {
         console.error("encryption salt mismatch");
       }
 
       campaign.encryptionKey = ck;
     }
 
-    campaign.encryptionSalt = res['encryption_salt'];
+    campaign.encryptionSalt = res["encryption_salt"];
     return campaign;
   }
 
@@ -236,20 +288,34 @@ class CampaignActions extends TipLinkApi {
       ...params,
       limit: 1,
       sorting: "-created_at",
-    }
+    };
 
-    const res = (await this.client.fetch("campaigns", findParams, null, "GET") as CampaignResult[])[0];
+    const res = (
+      (await this.client.fetch(
+        "campaigns",
+        findParams,
+        null,
+        "GET",
+      )) as CampaignResult[]
+    )[0];
 
-    const campaign = new Campaign({client: this.client, id: res['id'], name: res['name'], description: res['description'], imageUrl: res['image_url'], active: res['active'],});
+    const campaign = new Campaign({
+      client: this.client,
+      id: res["id"],
+      name: res["name"],
+      description: res["description"],
+      imageUrl: res["image_url"],
+      active: res["active"],
+    });
 
-    campaign.encryptionSalt = res['encryption_salt'];
+    campaign.encryptionSalt = res["encryption_salt"];
 
     console.warn("unable to acquire decryption key");
     // const encryptedKeyRes = await this.client.fetch(`campaigns/${campaign.id}/campaign_account_joins`);
     // // TODO figure out how api keys will do key exchange / sharing to get privateKey
     // const decryptedCampaignKey = await decryptPrivateKey(
-      // encryptedKeyRes.encrypted_campaign_key,
-      // privateKey
+    // encryptedKeyRes.encrypted_campaign_key,
+    // privateKey
     // );
     // campaign.encryptionKey = decryptedCampaignKey;
 
@@ -259,26 +325,37 @@ class CampaignActions extends TipLinkApi {
   public async all(params: CampaignAllParams): Promise<Campaign[]> {
     const filterParams = {
       ...params,
-    }
+    };
 
-    const campaignResults = (await this.client.fetch("campaigns", filterParams, null, "GET") as CampaignResult[]);
+    const campaignResults = (await this.client.fetch(
+      "campaigns",
+      filterParams,
+      null,
+      "GET",
+    )) as CampaignResult[];
 
     const campaigns = campaignResults.map((res) => {
-      const campaign = new Campaign({client: this.client, id: res['id'], name: res['name'], description: res['description'], imageUrl: res['image_url'], active: res['active'],});
-      campaign.encryptionSalt = res['encryption_salt'];
+      const campaign = new Campaign({
+        client: this.client,
+        id: res["id"],
+        name: res["name"],
+        description: res["description"],
+        imageUrl: res["image_url"],
+        active: res["active"],
+      });
+      campaign.encryptionSalt = res["encryption_salt"];
       console.warn("unable to acquire decryption key");
 
-    // const encryptedKeyRes = await this.client.fetch(`campaigns/${campaign.id}/campaign_account_joins`);
-    // // TODO figure out how api keys will do key exchange / sharing to get privateKey
-    // const decryptedCampaignKey = await decryptPrivateKey(
+      // const encryptedKeyRes = await this.client.fetch(`campaigns/${campaign.id}/campaign_account_joins`);
+      // // TODO figure out how api keys will do key exchange / sharing to get privateKey
+      // const decryptedCampaignKey = await decryptPrivateKey(
       // encryptedKeyRes.encrypted_campaign_key,
       // privateKey
-    // );
-    // campaign.encryptionKey = decryptedCampaignKey;
+      // );
+      // campaign.encryptionKey = decryptedCampaignKey;
 
       return campaign;
     });
-
 
     return campaigns;
   }
@@ -302,6 +379,29 @@ interface CampaignConstructorParams extends Themeable {
   active: boolean;
 }
 
+interface Account {
+  created_at: string;
+  encrypted_private_key: string;
+  google_info?: string;
+  id: number;
+  name: string;
+  organization_id: number;
+  public_key: string;
+  role: string;
+  torus_id: string;
+  torus_salt: string;
+  updated_at: string;
+}
+
+interface CampaignAccountJoinEntry {
+  account: Account;
+  account_id: number;
+  campaign_id: number;
+  encrypted_campaign_key: string;
+  id: number;
+  is_owner: boolean;
+}
+
 export class Campaign extends TipLinkApi {
   id: number;
   name: string;
@@ -309,13 +409,14 @@ export class Campaign extends TipLinkApi {
   imageUrl: string;
   active: boolean;
 
+  themeId?: number;
   encryptionKey?: string;
   encryptionSalt?: string;
 
   dispensers: DispenserActions;
 
   public constructor(
-    params: CampaignConstructorParams
+    params: CampaignConstructorParams,
     // client: TipLinkClient, id: number, name: string, description: string, imageUrl: string, active: boolean = true
   ) {
     super(params.client);
@@ -324,16 +425,24 @@ export class Campaign extends TipLinkApi {
     this.description = params.description;
     this.imageUrl = params.imageUrl;
     this.active = params.active;
-    this.dispensers = new DispenserActions({client: this.client, campaign: this});
+    this.themeId = params.themeId;
+    this.dispensers = new DispenserActions({
+      client: this.client,
+      campaign: this,
+    });
   }
 
   public async addEntries(tiplinks: TipLink[]): Promise<boolean> {
     const tiplinkToCampaignEntry = async (tiplink: TipLink) => {
-      if(!this.encryptionKey || !this.encryptionSalt) {
+      if (!this.encryptionKey || !this.encryptionSalt) {
         throw "No Encryption Key Set";
       }
 
-      const encryptedLink = await encrypt(tiplink.url.toString(), this.encryptionKey, this.encryptionSalt);
+      const encryptedLink = await encrypt(
+        tiplink.url.toString(),
+        this.encryptionKey,
+        this.encryptionSalt,
+      );
       const publicKey = tiplink.keypair.publicKey.toString();
 
       const result = {
@@ -347,30 +456,43 @@ export class Campaign extends TipLinkApi {
 
     while (tiplinks.length) {
       const entries = await Promise.all(
-        tiplinks.splice(-1 * STEP).map(tiplinkToCampaignEntry)
+        tiplinks.splice(-1 * STEP).map(tiplinkToCampaignEntry),
       );
-      await this.client.fetch(`campaigns/${this.id}/campaign_entries`, null, entries, "POST");
-
+      await this.client.fetch(
+        `campaigns/${this.id}/campaign_entries`,
+        null,
+        entries,
+        "POST",
+      );
 
       const analytics = entries.map((entry: CampaignEntry) => {
         return {
           event: "CREATED",
           public_key: entry.public_key,
         };
-      })
+      });
       await this.client.fetch("analytics", null, analytics, "POST");
     }
     return true;
   }
 
-  public async hideEntries(tiplinks: TipLink[] | PublicKey[]): Promise<boolean> {
-    const publicKeys = tiplinks.map((tp) => tp instanceof TipLink ? tp.keypair.publicKey : tp);
+  public async hideEntries(
+    tiplinks: TipLink[] | PublicKey[],
+  ): Promise<boolean> {
+    const publicKeys = tiplinks.map((tp) =>
+      tp instanceof TipLink ? tp.keypair.publicKey : tp,
+    );
     const entries = {
       publicKeys,
       funding_txn: "",
     };
 
-    await this.client.fetch(`campaigns/${this.id}/campaign_entries`, null, entries, "PUT");
+    await this.client.fetch(
+      `campaigns/${this.id}/campaign_entries`,
+      null,
+      entries,
+      "PUT",
+    );
 
     const analytics = publicKeys.map((pk: PublicKey) => {
       return {
@@ -384,8 +506,13 @@ export class Campaign extends TipLinkApi {
   }
 
   public async getEntries(params: GetEntriesParams): Promise<TipLink[] | null> {
-    const entryToTipLink = async (entry: CampaignEntry): Promise<TipLink | null> => {
-      if(typeof(this.encryptionKey) == "undefined" || typeof(this.encryptionSalt) == "undefined") {
+    const entryToTipLink = async (
+      entry: CampaignEntry,
+    ): Promise<TipLink | null> => {
+      if (
+        typeof this.encryptionKey == "undefined" ||
+        typeof this.encryptionSalt == "undefined"
+      ) {
         console.warn("No Decryption Key: Unable to decrypt entries");
         return null;
       }
@@ -396,16 +523,22 @@ export class Campaign extends TipLinkApi {
           this.encryptionKey,
           this.encryptionSalt,
         );
-        return TipLink.fromLink(link);
+        const tl = attachTheme(await TipLink.fromLink(link), this.themeId);
+        return tl;
       }
       return null;
     };
 
-    const resEntries = await this.client.fetch(`campaigns/${this.id}/campaign_entries`, params as unknown as Record<string, ArgT>);
+    const resEntries = await this.client.fetch(
+      `campaigns/${this.id}/campaign_entries`,
+      params as unknown as Record<string, ArgT>,
+    );
 
     let entries: TipLink[] = [];
     while (resEntries.length) {
-      const entry = await Promise.all(resEntries.splice(-1 * STEP).map(entryToTipLink));
+      const entry = await Promise.all(
+        resEntries.splice(-1 * STEP).map(entryToTipLink),
+      );
       entries = entries.concat(entry);
     }
     // TODO include analytics? and id give whole entry object?
@@ -414,8 +547,64 @@ export class Campaign extends TipLinkApi {
 
   public async getAnalytics(): Promise<AnalyticsSummary> {
     // TODO clean up response here and type
-    const analyticsRes = await this.client.fetch(`campaigns/${this.id}/analytics_summary`);
+    const analyticsRes = await this.client.fetch(
+      `campaigns/${this.id}/analytics_summary`,
+    );
     return analyticsRes;
+  }
+
+  public async share(email: string, admin = false): Promise<boolean> {
+    const accounts = await this.client.fetch(`accounts_public`, {
+      torus_id: email,
+    });
+    const account = accounts[0] as Account;
+    if (!account) {
+      console.warn("invalid email");
+      return false;
+    }
+
+    const campaignAccounts = await this.client.fetch(
+      `campaigns/${this.id}/campaign_account_joins`,
+      {
+        account_id: account.id,
+      },
+      null,
+      "GET",
+    );
+    const joinEntry = campaignAccounts.find(
+      (csa: CampaignAccountJoinEntry) => csa.account.torus_id === email,
+    );
+    if (joinEntry) {
+      console.warn("already shared with this email");
+      if (joinEntry.is_owner === admin) {
+        return false;
+      }
+    }
+
+    let encryptedCampaignKey = "";
+    if (typeof this.encryptionKey === "undefined") {
+      console.warn("encryptionKey not set: sharing view only");
+    } else {
+      encryptedCampaignKey = await encryptPublicKey(
+        this.encryptionKey,
+        account.public_key,
+      );
+    }
+
+    const shareParams = {
+      campaign_id: this.id,
+      account_id: account.id,
+      encrypted_campaign_key: encryptedCampaignKey,
+      is_owner: admin,
+    };
+
+    const shareResp = await this.client.fetch(
+      `campaigns/${this.id}/campaign_account_joins${joinEntry ? `/${joinEntry.id}` : ""}`,
+      null,
+      shareParams,
+      joinEntry ? "PUT" : "POST",
+    );
+    return !!shareResp;
   }
 }
 
@@ -465,19 +654,54 @@ class DispenserActions extends TipLinkApi {
   }
 
   public async create(params: CreateDispenserParams): Promise<Dispenser> {
-    const useCaptcha = typeof(params) != "undefined" && typeof(params.useCaptcha) != "undefined" ? params.useCaptcha : true;
-    const useFingerprint = typeof(params) != "undefined" && typeof(params.useFingerprint) != "undefined" ? params.useFingerprint : true;
-    const unlimitedClaims = typeof(params) != "undefined" && typeof(params.unlimitedClaims) != "undefined" ? params.unlimitedClaims : false;
-    const active = typeof(params) != "undefined" && typeof(params.active) != "undefined" && params.active !== null ? params.active : true;
-    const includedEntryIds: number[] = typeof(params) != "undefined" && typeof(params.includedEntryIds) != "undefined" && params.includedEntryIds !== null ? params.includedEntryIds : [];
-    const excludedEntryIds: number[] = typeof(params) != "undefined" && typeof(params.excludedEntryIds) != "undefined" && params.excludedEntryIds !== null ? params.excludedEntryIds : [];
+    const useCaptcha =
+      typeof params != "undefined" && typeof params.useCaptcha != "undefined"
+        ? params.useCaptcha
+        : true;
+    const useFingerprint =
+      typeof params != "undefined" &&
+      typeof params.useFingerprint != "undefined"
+        ? params.useFingerprint
+        : true;
+    const unlimitedClaims =
+      typeof params != "undefined" &&
+      typeof params.unlimitedClaims != "undefined"
+        ? params.unlimitedClaims
+        : false;
+    const active =
+      typeof params != "undefined" &&
+      typeof params.active != "undefined" &&
+      params.active !== null
+        ? params.active
+        : true;
+    const includedEntryIds: number[] =
+      typeof params != "undefined" &&
+      typeof params.includedEntryIds != "undefined" &&
+      params.includedEntryIds !== null
+        ? params.includedEntryIds
+        : [];
+    const excludedEntryIds: number[] =
+      typeof params != "undefined" &&
+      typeof params.excludedEntryIds != "undefined" &&
+      params.excludedEntryIds !== null
+        ? params.excludedEntryIds
+        : [];
 
-    const rateLimits = await this.client.fetch(`campaigns/${this.campaign.id}/rate_limits`);
+    const rateLimits = await this.client.fetch(
+      `campaigns/${this.campaign.id}/rate_limits`,
+    );
 
-    await Promise.all(rateLimits.map(async (rateLimit: RateLimit) => {
-      const deleteRateLimitRes = await this.client.fetch(`campaigns/${this.campaign.id}/rate_limits/${rateLimit['id']}`, null, null, "DELETE");
-      return deleteRateLimitRes;
-    }));
+    await Promise.all(
+      rateLimits.map(async (rateLimit: RateLimit) => {
+        const deleteRateLimitRes = await this.client.fetch(
+          `campaigns/${this.campaign.id}/rate_limits/${rateLimit["id"]}`,
+          null,
+          null,
+          "DELETE",
+        );
+        return deleteRateLimitRes;
+      }),
+    );
 
     if (!unlimitedClaims) {
       const rateLimitData = {
@@ -486,7 +710,12 @@ class DispenserActions extends TipLinkApi {
         claims: 1,
         // "rate_type": "user",
       };
-      await this.client.fetch(`campaigns/${this.campaign.id}/rate_limits`, null, rateLimitData, "POST");
+      await this.client.fetch(
+        `campaigns/${this.campaign.id}/rate_limits`,
+        null,
+        rateLimitData,
+        "POST",
+      );
     }
 
     const faucetData = {
@@ -495,9 +724,23 @@ class DispenserActions extends TipLinkApi {
       fingerprint: useFingerprint,
       recaptcha: useCaptcha,
     };
-    const faucet = await this.client.fetch(`campaigns/${this.campaign.id}/faucet`, null, faucetData, "POST");
+    const faucet = await this.client.fetch(
+      `campaigns/${this.campaign.id}/faucet`,
+      null,
+      faucetData,
+      "POST",
+    );
 
-    const dispenser = new Dispenser({client: this.client, campaign: this.campaign, id: faucet['id'], urlSlug: faucet['url_slug'], useCaptcha: faucet['recaptcha'], useFingerprint: faucet['fingerprint'], unlimitedClaims: unlimitedClaims, active: faucet['active']});
+    const dispenser = new Dispenser({
+      client: this.client,
+      campaign: this.campaign,
+      id: faucet["id"],
+      urlSlug: faucet["url_slug"],
+      useCaptcha: faucet["recaptcha"],
+      useFingerprint: faucet["fingerprint"],
+      unlimitedClaims: unlimitedClaims,
+      active: faucet["active"],
+    });
 
     const faucetEntryData = {
       all: includedEntryIds.length === 0,
@@ -505,22 +748,43 @@ class DispenserActions extends TipLinkApi {
       excluded_campaign_entry_ids: excludedEntryIds,
     };
 
-    await this.client.fetch(`campaigns/${this.campaign.id}/faucet/${faucet.id}/faucet_entries`, null, faucetEntryData, "POST");
+    await this.client.fetch(
+      `campaigns/${this.campaign.id}/faucet/${faucet.id}/faucet_entries`,
+      null,
+      faucetEntryData,
+      "POST",
+    );
 
     return dispenser;
   }
 
-  public async find (params: DispenserFindParams): Promise<Dispenser> {
+  public async find(params: DispenserFindParams): Promise<Dispenser> {
     const findParams = {
       ...params,
       limit: 1,
       sorting: "-created_at",
-    }
+    };
 
-    const faucet = (await this.client.fetch(`campaigns/${this.campaign.id}/faucet`, findParams, null, "GET") as Faucet[])[0];
+    const faucet = (
+      (await this.client.fetch(
+        `campaigns/${this.campaign.id}/faucet`,
+        findParams,
+        null,
+        "GET",
+      )) as Faucet[]
+    )[0];
 
     // TODO determine unlimited claims properly
-    const dispenser = new Dispenser({client: this.client, campaign: this.campaign, id: faucet['id'], urlSlug: faucet['url_slug'], useCaptcha: faucet['recaptcha'], useFingerprint: faucet['fingerprint'], unlimitedClaims: false, active: faucet['active']});
+    const dispenser = new Dispenser({
+      client: this.client,
+      campaign: this.campaign,
+      id: faucet["id"],
+      urlSlug: faucet["url_slug"],
+      useCaptcha: faucet["recaptcha"],
+      useFingerprint: faucet["fingerprint"],
+      unlimitedClaims: false,
+      active: faucet["active"],
+    });
 
     return dispenser;
   }
@@ -528,13 +792,27 @@ class DispenserActions extends TipLinkApi {
   public async all(params: DispenserAllParams): Promise<Dispenser[]> {
     const filterParams = {
       ...params,
-    }
+    };
 
-    const faucets = (await this.client.fetch(`campaigns/${this.campaign.id}/faucet`, filterParams, null, "GET") as Faucet[]);
+    const faucets = (await this.client.fetch(
+      `campaigns/${this.campaign.id}/faucet`,
+      filterParams,
+      null,
+      "GET",
+    )) as Faucet[];
 
     // TODO determine unlimited claims properly
     const dispensers = faucets.map((faucet: Faucet) => {
-      const dispenser = new Dispenser({client: this.client, campaign: this.campaign, id: faucet['id'], urlSlug: faucet['url_slug'], useCaptcha: faucet['recaptcha'], useFingerprint: faucet['fingerprint'], unlimitedClaims: false, active: faucet['active']});
+      const dispenser = new Dispenser({
+        client: this.client,
+        campaign: this.campaign,
+        id: faucet["id"],
+        urlSlug: faucet["url_slug"],
+        useCaptcha: faucet["recaptcha"],
+        useFingerprint: faucet["fingerprint"],
+        unlimitedClaims: false,
+        active: faucet["active"],
+      });
       return dispenser;
     });
 
@@ -579,7 +857,7 @@ export class Dispenser extends TipLinkApi {
   }
 
   private getUrl(): URL {
-    if(typeof(this.campaign.encryptionKey) == "undefined") {
+    if (typeof this.campaign.encryptionKey == "undefined") {
       throw "invalid dispenser no decryption key available";
     }
     const urlString = `${URL_BASE}/f/${this.campaign.id}-${this.urlSlug}#${this.campaign.encryptionKey}`;
@@ -590,7 +868,12 @@ export class Dispenser extends TipLinkApi {
     const data = {
       active: false,
     };
-    const faucet = await this.client.fetch(`campaigns/${this.campaign.id}/faucet/${this.id}`, null, data, "PUT");
+    const faucet = await this.client.fetch(
+      `campaigns/${this.campaign.id}/faucet/${this.id}`,
+      null,
+      data,
+      "PUT",
+    );
     this.active = faucet.active;
     return true;
   }
@@ -599,7 +882,12 @@ export class Dispenser extends TipLinkApi {
     const data = {
       active: true,
     };
-    const faucet = await this.client.fetch(`campaigns/${this.campaign.id}/faucet/${this.id}`, null, data, "PUT");
+    const faucet = await this.client.fetch(
+      `campaigns/${this.campaign.id}/faucet/${this.id}`,
+      null,
+      data,
+      "PUT",
+    );
     this.active = faucet.active;
     return true;
   }
@@ -608,13 +896,23 @@ export class Dispenser extends TipLinkApi {
     const data = {
       url_slug: nanoid(FAUCET_ID_LENGTH),
     };
-    const faucet = await this.client.fetch(`campaigns/${this.campaign.id}/faucet/${this.id}`, null, data, "PUT");
-    this.urlSlug = faucet['url_slug'];
+    const faucet = await this.client.fetch(
+      `campaigns/${this.campaign.id}/faucet/${this.id}`,
+      null,
+      data,
+      "PUT",
+    );
+    this.urlSlug = faucet["url_slug"];
     this.url = this.getUrl();
     return this.url;
   }
   public async delete(): Promise<boolean> {
-    await this.client.fetch(`campaigns/${this.campaign.id}/faucet/${this.id}`, null, null, "DELETE");
+    await this.client.fetch(
+      `campaigns/${this.campaign.id}/faucet/${this.id}`,
+      null,
+      null,
+      "DELETE",
+    );
     return true;
   }
 }
@@ -625,7 +923,7 @@ interface MintActionsConstructor {
 
 export enum DataHost {
   Arweave = "arweave",
-  Shadow = "shadow"
+  Shadow = "shadow",
 }
 
 const IMAGE_HOST_DEFAULT = DataHost.Arweave;
@@ -699,7 +997,7 @@ class MintActions extends TipLinkApi {
     const newMintAttributes: Record<string, string>[] = [];
     if (Object.keys(attributes).length > 0) {
       Object.keys(attributes).forEach((key) => {
-        newMintAttributes.push({"trait_type": key, "value": attributes[key]});
+        newMintAttributes.push({ trait_type: key, value: attributes[key] });
       });
     }
     return newMintAttributes;
@@ -727,17 +1025,21 @@ class MintActions extends TipLinkApi {
       supply: params.mintLimit,
       collectionMint: !!params.existingCollectionId,
       imageHost: params.dataHost || IMAGE_HOST_DEFAULT,
-    }
+    };
 
-    const costData = (await this.client.fetch(
-      "/api/dynamic_mint/calculate_campaign_costs",
-      null,
-      costRequest,
-      "POST"
-    ) as Record<string, any>)[0]; // TODO type this response?
+    const costData = (
+      (await this.client.fetch(
+        "/api/dynamic_mint/calculate_campaign_costs",
+        null,
+        costRequest,
+        "POST",
+      )) as Record<string, any>
+    )[0]; // TODO type this response?
 
     let total = 0;
-    Object.keys(costData).forEach(costKey => total += (costData[costKey].cost || 0));
+    Object.keys(costData).forEach(
+      (costKey) => (total += costData[costKey].cost || 0),
+    );
 
     const destination = new PublicKey(costData.publicKeyToFund);
 
@@ -756,9 +1058,16 @@ class MintActions extends TipLinkApi {
       throw Error("Mint Name too Long");
     } else if (params.symbol.length > ON_CHAIN_SYMBOL_CHAR_LIMIT) {
       throw Error("Mint Symbol too Long");
-    } else if (typeof(params.royalties) !== 'undefined' && (params.royalties > 50 || params.royalties < 0)) {
+    } else if (
+      typeof params.royalties !== "undefined" &&
+      (params.royalties > 50 || params.royalties < 0)
+    ) {
       throw Error("Royalties must be between 0 and 50%");
-    } else if (typeof(params.externalUrl) !== 'undefined' && params.externalUrl !== "" && !this.isValidUrl(params.externalUrl)) {
+    } else if (
+      typeof params.externalUrl !== "undefined" &&
+      params.externalUrl !== "" &&
+      !this.isValidUrl(params.externalUrl)
+    ) {
       throw Error("Invalid external url");
     }
 
@@ -770,7 +1079,10 @@ class MintActions extends TipLinkApi {
       formData.append(`mint[${index}][campaignName]`, params.campaignName);
     }
     if (params.campaignDescription) {
-      formData.append(`mint[${index}][campaignDescription]`, params.campaignDescription);
+      formData.append(
+        `mint[${index}][campaignDescription]`,
+        params.campaignDescription,
+      );
     }
     if (params.themeId) {
       formData.append(`mint[${index}][themeId]`, String(params.themeId));
@@ -789,7 +1101,10 @@ class MintActions extends TipLinkApi {
       formData.append(`mint[${index}][imageUrl]`, params.mintImageUrl);
     }
     if (params.dataHost) {
-      formData.append(`mint[${index}][imageHost]`, params.dataHost || IMAGE_HOST_DEFAULT);
+      formData.append(
+        `mint[${index}][imageHost]`,
+        params.dataHost || IMAGE_HOST_DEFAULT,
+      );
     }
     if (params.mintImageUrl) {
       formData.append(`mint[${index}][archiveImageUrl]`, params.mintImageUrl);
@@ -798,24 +1113,42 @@ class MintActions extends TipLinkApi {
       formData.append(`mint[${index}][externalUrl]`, params.externalUrl);
     }
     if (params.existingCollectionId) {
-      formData.append(`mint[${index}][collectionMint]`, params.existingCollectionId);
+      formData.append(
+        `mint[${index}][collectionMint]`,
+        params.existingCollectionId,
+      );
     }
     if (params.mintLimit.toString()) {
-      formData.append(`mint[${index}][initialLimit]`, params.mintLimit.toString());
+      formData.append(
+        `mint[${index}][initialLimit]`,
+        params.mintLimit.toString(),
+      );
     }
 
     if (params.creatorPublicKey) {
-      formData.append(`mint[${index}][creator]`, params.creatorPublicKey.toBase58() || '');
+      formData.append(
+        `mint[${index}][creator]`,
+        params.creatorPublicKey.toBase58() || "",
+      );
     }
     if (params.royalties) {
-      formData.append(`mint[${index}][sellerFeeBasisPoints]`, JSON.stringify(Number(params.royalties) * 100));
+      formData.append(
+        `mint[${index}][sellerFeeBasisPoints]`,
+        JSON.stringify(Number(params.royalties) * 100),
+      );
     }
     if (params.royaltiesDestination) {
-      formData.append(`mint[${index}][royaltiesDestination]`, params.royaltiesDestination.toBase58() || '');
+      formData.append(
+        `mint[${index}][royaltiesDestination]`,
+        params.royaltiesDestination.toBase58() || "",
+      );
     }
 
     if (params.attributes) {
-      formData.append(`mint[${index}][attributes]`, JSON.stringify(this.transformAttributes(params.attributes)));
+      formData.append(
+        `mint[${index}][attributes]`,
+        JSON.stringify(this.transformAttributes(params.attributes)),
+      );
     }
 
     if (formData.get(`mint[${index}][campaignName]`) === null) {
@@ -834,32 +1167,36 @@ class MintActions extends TipLinkApi {
       throw Error("feeTransactionHash is required");
     }
 
-    const stageResponse = (await this.client.fetch(
-      "/api/dynamic_mint/stage_mint_campaign",
-      null,
-      formData,
-      "POST",
-    ) as Record<string, unknown>[])[0];
+    const stageResponse = (
+      (await this.client.fetch(
+        "/api/dynamic_mint/stage_mint_campaign",
+        null,
+        formData,
+        "POST",
+      )) as Record<string, unknown>[]
+    )[0];
 
     const feeTransactionHash = params.feeTransactionHash;
 
-    const createResponse = (await this.client.fetch(
-      "/api/dynamic_mint/create_mint_campaign",
-      null,
-      {
-        campaignIds: [stageResponse.campaign_id],
-        transactions: [feeTransactionHash],
-      },
-      "POST"
-    ) as Record<string, any>[])[0]; // TODO type this response
+    const createResponse = (
+      (await this.client.fetch(
+        "/api/dynamic_mint/create_mint_campaign",
+        null,
+        {
+          campaignIds: [stageResponse.campaign_id],
+          transactions: [feeTransactionHash],
+        },
+        "POST",
+      )) as Record<string, any>[]
+    )[0]; // TODO type this response
 
     const mintParams: MintConstructorParams = {
       client: this.client,
-      id: Number(createResponse['id']),
-      campaign_id: createResponse['campaign_id'],
-      mintName: createResponse['name'],
-      symbol: createResponse['symbol'],
-      mintDescription: createResponse['description'],
+      id: Number(createResponse["id"]),
+      campaign_id: createResponse["campaign_id"],
+      mintName: createResponse["name"],
+      symbol: createResponse["symbol"],
+      mintDescription: createResponse["description"],
       campaignName: params.campaignName,
       collectionId: createResponse["collection_mint"],
       treeAddress: createResponse["tree_address"],
@@ -881,15 +1218,22 @@ class MintActions extends TipLinkApi {
       userClaimLimit: createResponse["user_claim_limit"],
     };
 
-    if (Object.prototype.hasOwnProperty.call(createResponse, "royalties_destination") && typeof createResponse["royalties_destination"] === 'string') {
-      mintParams["royaltiesDestination"] = new PublicKey(createResponse["royalties_destination"]);
+    if (
+      Object.prototype.hasOwnProperty.call(
+        createResponse,
+        "royalties_destination",
+      ) &&
+      typeof createResponse["royalties_destination"] === "string"
+    ) {
+      mintParams["royaltiesDestination"] = new PublicKey(
+        createResponse["royalties_destination"],
+      );
     }
 
     const mint = new Mint(mintParams);
 
     return mint;
   }
-
 }
 
 export class Mint extends TipLinkApi {
@@ -923,9 +1267,7 @@ export class Mint extends TipLinkApi {
   userClaimLimit: number;
   royaltiesDestination?: PublicKey | null;
 
-  public constructor(
-    params: MintConstructorParams
-  ) {
+  public constructor(params: MintConstructorParams) {
     super(params.client);
     this.id = params.id;
     this.campaign_id = params.campaign_id;
@@ -967,7 +1309,53 @@ export class Mint extends TipLinkApi {
 
   public async getAnalytics(): Promise<AnalyticsSummary> {
     // TODO clean up response here and type
-    const analyticsRes = await this.client.fetch(`campaigns/${this.campaign_id}/analytics_summary`);
+    const analyticsRes = await this.client.fetch(
+      `campaigns/${this.campaign_id}/analytics_summary`,
+    );
     return analyticsRes;
+  }
+
+  public async share(email: string, admin = false): Promise<boolean> {
+    const accounts = await this.client.fetch(`accounts_public`, {
+      torus_id: email,
+    });
+    const account = accounts[0] as Account;
+    if (!account) {
+      console.warn("invalid email");
+      return false;
+    }
+
+    const campaignAccounts = await this.client.fetch(
+      `campaigns/${this.campaign_id}/campaign_account_joins`,
+      {
+        account_id: account.id,
+      },
+      null,
+      "GET",
+    );
+    const joinEntry = campaignAccounts.find(
+      (csa: CampaignAccountJoinEntry) => csa.account.torus_id === email,
+    );
+    if (joinEntry) {
+      console.warn("already shared with this email");
+      if (joinEntry.is_owner === admin) {
+        return false;
+      }
+    }
+
+    const shareParams = {
+      campaign_id: this.campaign_id,
+      account_id: account.id,
+      encrypted_campaign_key: "",
+      is_owner: admin,
+    };
+
+    const shareResp = await this.client.fetch(
+      `campaigns/${this.campaign_id}/campaign_account_joins${joinEntry ? `/${joinEntry.id}` : ""}`,
+      null,
+      shareParams,
+      joinEntry ? "PUT" : "POST",
+    );
+    return !!shareResp;
   }
 }
