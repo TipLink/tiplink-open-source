@@ -4,8 +4,11 @@ import { encode as b58encode, decode as b58decode } from "bs58";
 
 const DEFAULT_TIPLINK_KEYLENGTH = 12;
 const DEFAULT_HASHLESS_TIPLINK_KEYLENGTH = 16; // 16 bytes = 128 bits
+const DEFAULT_ORIGIN = "https://tiplink.io";
 export const TIPLINK_ORIGIN =
-  process.env.TIPLINK_ORIGIN_OVERRIDE || "https://tiplink.io";
+  typeof process === "undefined"
+    ? DEFAULT_ORIGIN
+    : process?.env?.TIPLINK_ORIGIN_OVERRIDE ?? DEFAULT_ORIGIN;
 const TIPLINK_PATH = "/i";
 
 const VERSION_DELIMITER = "_";
@@ -137,30 +140,32 @@ import {
   getEscrowReceiverTipLink,
   PRIO_FEES_LAMPORTS,
   ESCROW_PROGRAM_ID,
-  interpretIx,
-  interpretTx,
-  getAllEscrowActions,
+  parseEscrowIx,
+  parseEscrowTx,
+  getAllRecordedEscrowActions,
   EscrowActionType,
   EscrowActionDepositLamport,
   EscrowActionWithdrawLamport,
   EscrowActionDepositSpl,
   EscrowActionWithdrawSpl,
   EscrowAction,
+  RecordedEscrowAction,
 } from "./escrow";
 export {
   EscrowTipLink,
   getEscrowReceiverTipLink,
   PRIO_FEES_LAMPORTS,
   ESCROW_PROGRAM_ID,
-  interpretIx,
-  interpretTx,
-  getAllEscrowActions,
+  parseEscrowIx,
+  parseEscrowTx,
+  getAllRecordedEscrowActions,
   EscrowActionType,
   EscrowActionDepositLamport,
   EscrowActionWithdrawLamport,
   EscrowActionDepositSpl,
   EscrowActionWithdrawSpl,
   EscrowAction,
+  RecordedEscrowAction,
 };
 
 import {

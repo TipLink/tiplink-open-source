@@ -11,8 +11,7 @@ import { getAssociatedTokenAddress } from "@solana/spl-token";
 import {
   EscrowTipLink,
   EscrowActionType,
-  interpretTx,
-  EscrowAction,
+  parseEscrowTx,
   EscrowActionDepositLamport,
   EscrowActionWithdrawLamport,
   EscrowActionDepositSpl,
@@ -81,9 +80,12 @@ onchainTest(
 
     const tx = await lamportEscrowTipLink.depositTx(connection);
     insertPrioFeesIxs(tx);
-    const sig = await sendAndConfirmTransaction(connection, tx, [
-      depositorKeypair,
-    ]);
+    const sig = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [depositorKeypair],
+      { commitment: "confirmed" }
+    );
 
     // Check on-chain data
     expect(lamportEscrowTipLink.pda).toBeDefined();
@@ -92,17 +94,13 @@ onchainTest(
     expect(lamportEscrowTipLink.depositorUrl).toBeInstanceOf(URL);
 
     // Check parsing
-    const actions = await interpretTx(connection, sig);
-    let action: EscrowAction | undefined;
-    for (const a of actions) {
-      if (a) {
-        expect(action).toBeUndefined();
-        action = a;
-        break;
-      }
-    }
-    expect(action).toBeDefined();
-    expect(action?.type).toBe(EscrowActionType.DepositLamport);
+    const recordedActions = await parseEscrowTx(connection, sig);
+    console.log("recordedActions:", recordedActions);
+    expect(recordedActions.length).toBe(1);
+    const recordedAction = recordedActions[0];
+    expect(recordedAction.txSig).toBe(sig);
+    let { action } = recordedAction;
+    expect(action.type).toBe(EscrowActionType.DepositLamport);
     action = action as EscrowActionDepositLamport;
     expect(action.depositor).toStrictEqual(depositorKeypair.publicKey);
     expect(action.pda).toStrictEqual(lamportEscrowTipLink.pda);
@@ -149,9 +147,12 @@ onchainTest(
       depositorKeypair.publicKey
     );
     insertPrioFeesIxs(tx);
-    const sig = await sendAndConfirmTransaction(connection, tx, [
-      depositorKeypair,
-    ]);
+    const sig = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [depositorKeypair],
+      { commitment: "confirmed" }
+    );
 
     const depositorEndBalance = await connection.getBalance(
       depositorKeypair.publicKey
@@ -167,17 +168,12 @@ onchainTest(
     expect(retrievedEscrowTipLink).toBeUndefined();
 
     // Check parsing
-    const actions = await interpretTx(connection, sig);
-    let action: EscrowAction | undefined;
-    for (const a of actions) {
-      if (a) {
-        expect(action).toBeUndefined();
-        action = a;
-        break;
-      }
-    }
-    expect(action).toBeDefined();
-    expect(action?.type).toBe(EscrowActionType.WithdrawLamport);
+    const recordedActions = await parseEscrowTx(connection, sig);
+    expect(recordedActions.length).toBe(1);
+    const recordedAction = recordedActions[0];
+    expect(recordedAction.txSig).toBe(sig);
+    let { action } = recordedAction;
+    expect(action.type).toBe(EscrowActionType.WithdrawLamport);
     action = action as EscrowActionWithdrawLamport;
     expect(action.authority).toStrictEqual(depositorKeypair.publicKey);
     expect(action.pda).toStrictEqual(lamportEscrowTipLink.pda);
@@ -222,9 +218,12 @@ onchainTest(
 
     const tx = await splEscrowTipLink.depositTx(connection);
     insertPrioFeesIxs(tx);
-    const sig = await sendAndConfirmTransaction(connection, tx, [
-      depositorKeypair,
-    ]);
+    const sig = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [depositorKeypair],
+      { commitment: "confirmed" }
+    );
 
     // Check on-chain data
     expect(splEscrowTipLink.pda).toBeDefined();
@@ -233,17 +232,12 @@ onchainTest(
     expect(splEscrowTipLink.depositorUrl).toBeInstanceOf(URL);
 
     // Check parsing
-    const actions = await interpretTx(connection, sig);
-    let action: EscrowAction | undefined;
-    for (const a of actions) {
-      if (a) {
-        expect(action).toBeUndefined();
-        action = a;
-        break;
-      }
-    }
-    expect(action).toBeDefined();
-    expect(action?.type).toBe(EscrowActionType.DepositSpl);
+    const recordedActions = await parseEscrowTx(connection, sig);
+    expect(recordedActions.length).toBe(1);
+    const recordedAction = recordedActions[0];
+    expect(recordedAction.txSig).toBe(sig);
+    let { action } = recordedAction;
+    expect(action.type).toBe(EscrowActionType.DepositSpl);
     action = action as EscrowActionDepositSpl;
     expect(action.depositor).toStrictEqual(depositorKeypair.publicKey);
     expect(action.pda).toStrictEqual(splEscrowTipLink.pda);
@@ -308,9 +302,12 @@ onchainTest(
       depositorKeypair.publicKey
     );
     insertPrioFeesIxs(tx);
-    const sig = await sendAndConfirmTransaction(connection, tx, [
-      depositorKeypair,
-    ]);
+    const sig = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [depositorKeypair],
+      { commitment: "confirmed" }
+    );
 
     const depositorAtaEndBalance = await connection.getTokenAccountBalance(
       depositorAta
@@ -328,17 +325,12 @@ onchainTest(
     expect(retrievedEscrowTipLink).toBeUndefined();
 
     // Check parsing
-    const actions = await interpretTx(connection, sig);
-    let action: EscrowAction | undefined;
-    for (const a of actions) {
-      if (a) {
-        expect(action).toBeUndefined();
-        action = a;
-        break;
-      }
-    }
-    expect(action).toBeDefined();
-    expect(action?.type).toBe(EscrowActionType.WithdrawSpl);
+    const recordedActions = await parseEscrowTx(connection, sig);
+    expect(recordedActions.length).toBe(1);
+    const recordedAction = recordedActions[0];
+    expect(recordedAction.txSig).toBe(sig);
+    let { action } = recordedAction;
+    expect(action.type).toBe(EscrowActionType.WithdrawSpl);
     action = action as EscrowActionWithdrawSpl;
     expect(action.authority).toStrictEqual(depositorKeypair.publicKey);
     expect(action.pda).toStrictEqual(splEscrowTipLink.pda);

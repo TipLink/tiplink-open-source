@@ -7,7 +7,7 @@ import {
   createReceiverTipLink,
   getReceiverEmail,
   EscrowTipLink,
-  getAllEscrowActions,
+  getAllRecordedEscrowActions,
   EscrowActionType,
 } from "@tiplink/api";
 import { PublicKey, Connection } from "@solana/web3.js";
@@ -52,17 +52,20 @@ export async function getReceiverEmailAction(
   // The following function might take a while if the PDA has been spammed with
   // transactions that it needs to sift through. We recommend running this on a
   // backend and cache-ing the result.
-  const actions = await getAllEscrowActions(CONNECTION, pdaPubKey);
+  const recordedActions = await getAllRecordedEscrowActions(
+    CONNECTION,
+    pdaPubKey,
+  );
   // eslint-disable-next-line no-restricted-syntax
-  for (const action of actions) {
+  for (const recordedAction of recordedActions) {
     if (
-      action.type === EscrowActionType.DepositLamport ||
-      action.type === EscrowActionType.DepositSpl
+      recordedAction.action.type === EscrowActionType.DepositLamport ||
+      recordedAction.action.type === EscrowActionType.DepositSpl
     ) {
       // eslint-disable-next-line no-await-in-loop
       const email = await getReceiverEmail(
         process.env.MAILER_API_KEY as string,
-        action.receiverTipLink,
+        recordedAction.action.receiverTipLink,
       );
       return email;
     }

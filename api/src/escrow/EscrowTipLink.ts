@@ -102,7 +102,10 @@ export class EscrowTipLink {
     }
 
     const urlStr =
-      process.env.NEXT_PUBLIC_ESCROW_DEPOSITOR_URL_OVERRIDE || DEPOSIT_URL_BASE;
+      typeof process === "undefined"
+        ? DEPOSIT_URL_BASE
+        : process?.env?.NEXT_PUBLIC_ESCROW_DEPOSITOR_URL_OVERRIDE ??
+          DEPOSIT_URL_BASE;
     const url = new URL(urlStr);
     url.searchParams.append("pda", this.pda.toString());
 
@@ -190,8 +193,8 @@ export class EscrowTipLink {
   /**
    * Creates an EscrowTipLink instance from a deposited, on-chain escrow.
    *
-   * To get data for withdrawn / closed escrows, use `interpretIx`,
-   * `interpretTx`, or `getAllEscrowActions`, the last of which should be called
+   * To get data for withdrawn / closed escrows, use `parseEscrowIx`,
+   * `parseEscrowTx`, or `getAllRecordedEscrowActions`, the last of which should be called
    * on backends and cached for performance.
    */
   static async get(

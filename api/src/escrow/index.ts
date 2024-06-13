@@ -1,28 +1,30 @@
 import { EscrowTipLink, getEscrowReceiverTipLink } from "./EscrowTipLink";
 import { PRIO_FEES_LAMPORTS, ESCROW_PROGRAM_ID } from "./constants";
 import {
-  interpretIx,
-  interpretTx,
-  getAllEscrowActions,
+  parseEscrowIx,
+  parseEscrowTx,
+  getAllRecordedEscrowActions,
   EscrowActionType,
   EscrowActionDepositLamport,
   EscrowActionWithdrawLamport,
   EscrowActionDepositSpl,
   EscrowActionWithdrawSpl,
   EscrowAction,
+  RecordedEscrowAction,
 } from "./escrow-parsing";
 export {
   EscrowTipLink,
   getEscrowReceiverTipLink,
   PRIO_FEES_LAMPORTS,
   ESCROW_PROGRAM_ID,
-  interpretIx,
-  interpretTx,
-  getAllEscrowActions,
+  parseEscrowIx,
+  parseEscrowTx,
+  getAllRecordedEscrowActions,
   EscrowActionType,
   EscrowActionDepositLamport,
   EscrowActionWithdrawLamport,
   EscrowActionDepositSpl,
   EscrowActionWithdrawSpl,
   EscrowAction,
+  RecordedEscrowAction,
 };

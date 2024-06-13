@@ -3,10 +3,12 @@ import { PublicKey } from "@solana/web3.js";
 import { EscrowTipLink, TipLink } from ".";
 import { isEmailValid } from "./email";
 
+const DEFAULT_ENCLAVE_ENDPOINT = "https://mailer.tiplink.io";
 const ENCLAVE_ENDPOINT =
-  process.env.NEXT_PUBLIC_ENCLAVE_ENDPOINT_OVERRIDE ||
-  "https://mailer.tiplink.io";
-
+  typeof process === "undefined"
+    ? DEFAULT_ENCLAVE_ENDPOINT
+    : process?.env?.NEXT_PUBLIC_ENCLAVE_ENDPOINT_OVERRIDE ??
+      DEFAULT_ENCLAVE_ENDPOINT;
 /**
  * Asynchronously calls secure enclave to create a TipLink, store it with an associated email, and return its public key.
  *
@@ -17,7 +19,7 @@ const ENCLAVE_ENDPOINT =
  */
 export async function createReceiverTipLink(
   apiKey: string,
-  email: string
+  email: string,
 ): Promise<PublicKey> {
   if (!(await isEmailValid(email))) {
     throw new Error("Invalid email address");
@@ -58,7 +60,7 @@ export async function createReceiverTipLink(
  */
 export async function getReceiverEmail(
   apiKey: string,
-  publicKey: PublicKey
+  publicKey: PublicKey,
 ): Promise<string> {
   const endpoint = `${ENCLAVE_ENDPOINT}/api/v1/generated-tiplinks/${publicKey.toString()}/email`;
   const res = await fetch(endpoint, {
@@ -101,7 +103,7 @@ export async function mail(
   toEmail: string,
   toName?: string,
   replyEmail?: string,
-  replyName?: string
+  replyName?: string,
 ): Promise<void> {
   if (!(await isEmailValid(toEmail))) {
     throw new Error("Invalid email address");
@@ -171,7 +173,7 @@ interface MailEscrowWithValsArgs {
  * Asynchronously emails a deposited Escrow TipLink to a pre-defined recipient.
  */
 export async function mailEscrow(
-  args: MailEscrowWithObjArgs | MailEscrowWithValsArgs
+  args: MailEscrowWithObjArgs | MailEscrowWithValsArgs,
 ): Promise<void> {
   // TODO: Require API key / ensure deposited
 
@@ -203,7 +205,9 @@ export async function mailEscrow(
     pda: pda.toString(),
     tiplinkPublicKey: receiverTipLink.toString(),
     receiverUrlOverride:
-      process.env.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE || undefined,
+      typeof process === "undefined"
+        ? undefined
+        : process?.env?.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE ?? undefined,
   };
   const res = await fetch(url, {
     method: "POST",

@@ -7,7 +7,6 @@ import {
   PublicKey,
   Connection,
   PartiallyDecodedInstruction,
-  ParsedInstruction,
   ConfirmedSignatureInfo,
 } from "@solana/web3.js";
 import { getMint, Mint } from "@solana/spl-token";
@@ -105,7 +104,14 @@ export type EscrowAction =
   | EscrowActionDepositSpl
   | EscrowActionWithdrawSpl;
 
-export async function interpretIx(
+export type RecordedEscrowAction = {
+  slot: number;
+  txSig: string;
+  ixIndex: number;
+  action: EscrowAction;
+};
+
+export async function parseEscrowIx(
   connection: Connection,
   partiallyDecodedIx: PartiallyDecodedInstruction
 ): Promise<EscrowAction | undefined> {
@@ -162,33 +168,47 @@ export async function interpretIx(
   throw new Error("Unknown escrow instruction");
 }
 
-export async function interpretTx(
+export async function parseEscrowTx(
   connection: Connection,
   sig: string
-): Promise<(EscrowAction | undefined)[]> {
+): Promise<RecordedEscrowAction[]> {
   const parsedTx = await connection.getParsedTransaction(sig, {
     maxSupportedTransactionVersion: 0,
   });
-  if (!parsedTx || !parsedTx.meta || !parsedTx.meta.logMessages) {
+  if (!parsedTx) {
     return [];
   }
 
   const { instructions } = parsedTx.transaction.message;
-  const actions: (EscrowAction | undefined)[] = [];
-  // Sequential to avoid jest issues: https://github.com/jestjs/jest/issues/11617
-  for (const ix of instructions as (
-    | ParsedInstruction
-    | PartiallyDecodedInstruction
-  )[]) {
-    // Only handle PartiallyDecodedInstruction
-    if (!("data" in ix)) {
-      actions.push(undefined);
-    } else {
-      const action = await interpretIx(connection, ix);
-      actions.push(action);
-    }
-  }
-  return actions;
+  // DEBUG
+  // console.log("instructions:", instructions);
+  const recordedActions: (RecordedEscrowAction | undefined)[] =
+    await Promise.all(
+      instructions.map(async (ix, index) => {
+        if (!("data" in ix)) {
+          return undefined;
+        }
+        const action = await parseEscrowIx(connection, ix);
+        if (!action) {
+          return undefined;
+        }
+        return {
+          slot: parsedTx.slot,
+          txSig: sig,
+          ixIndex: index,
+          action,
+        };
+      })
+    );
+  // DEBUG
+  // console.log("recordedActions:", recordedActions);
+  const filteredRecordedActions = recordedActions.filter(
+    (action): action is RecordedEscrowAction => action !== undefined
+  );
+  // DEBUG
+  // console.log("filteredRecordedActions:", filteredRecordedActions);
+
+  return filteredRecordedActions;
 }
 
 /**
@@ -198,11 +218,11 @@ export async function interpretTx(
  *
  * @param delay - Delay between RPC requests to avoid rate limiting
  */
-export async function getAllEscrowActions(
+export async function getAllRecordedEscrowActions(
   connection: Connection,
   pda: PublicKey,
   delayMs = 400
-): Promise<EscrowAction[]> {
+): Promise<RecordedEscrowAction[]> {
   // Limit set to 1,000
   const totalSigInfos: ConfirmedSignatureInfo[] = [];
   let sigInfos = await connection.getConfirmedSignaturesForAddress2(pda);
@@ -216,17 +236,30 @@ export async function getAllEscrowActions(
 
   const sigs = totalSigInfos.map((sigInfo) => sigInfo.signature);
 
-  const totalActions: EscrowAction[] = [];
+  const totalRecordedActions: RecordedEscrowAction[] = [];
   for (const sig of sigs) {
     // eslint-disable-next-line no-await-in-loop
-    const actions = await interpretTx(connection, sig);
-    for (const action of actions) {
-      if (action) {
-        totalActions.push(action);
-      }
-      await sleep(delayMs);
-    }
+    const recordedActions = await parseEscrowTx(connection, sig);
+    totalRecordedActions.push(...recordedActions);
+    // eslint-disable-next-line no-await-in-loop
+    await sleep(delayMs);
   }
 
-  return totalActions;
+  // Sort by most recent
+  totalRecordedActions.sort((a, b) => {
+    // Try slot first
+    if (a.slot !== b.slot) {
+      return b.slot - a.slot;
+    }
+    // If in the same transaction (unlikely), sort by index
+    if (a.txSig === b.txSig) {
+      return b.ixIndex - a.ixIndex;
+    }
+    // Otherwise (unlikely), just return 0
+    // It may be possible to see the order of transactions in a block but this is
+    // overkill
+    return 0;
+  });
+
+  return totalRecordedActions;
 }

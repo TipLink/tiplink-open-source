@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "preinstall": "npm run install:tiplink-api",
+    "preinstall": "npm run install:tiplink-api && npm run build:tiplink-api",
     "dev": "concurrently \"npm run dev:tiplink-api\" \"next dev --experimental-https\"",
     "build": "npm run build:tiplink-api && next build",
     "start": "next start",
