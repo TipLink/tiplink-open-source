@@ -1,13 +1,14 @@
 {
   "name": "@tiplink/api",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Api for creating and sending TipLinks",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "dev": "tsc --watch",
-    "test": "jest",
+    "test": "jest --runInBand",
     "test:include-onchain-tests": "ONCHAIN_TESTS=true jest --runInBand",
+    "test:file": "jest --",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "prepublishOnly": "npm run build && npm test && npm run lint"

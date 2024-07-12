@@ -24,7 +24,7 @@ function stringToArrayBuffer(str: string) {
 
 // Crypto encrypting links in db and apikeys
 const KEY_LENGTH_BYTES = 256;
-const SALT_LENGTH_BYTES = 64;
+const SALT_LENGTH_BYTES = 12;
 const MODULUS_LENGTH = 4096;
 const DIGEST_ALGO = "SHA-512";
 

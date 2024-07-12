@@ -6,9 +6,9 @@ const DEFAULT_TIPLINK_KEYLENGTH = 12;
 const DEFAULT_HASHLESS_TIPLINK_KEYLENGTH = 16; // 16 bytes = 128 bits
 const DEFAULT_ORIGIN = "https://tiplink.io";
 export const TIPLINK_ORIGIN =
-  typeof process === "undefined"
-    ? DEFAULT_ORIGIN
-    : process?.env?.TIPLINK_ORIGIN_OVERRIDE ?? DEFAULT_ORIGIN;
+  process !== undefined && process.env !== undefined
+    ? process.env.TIPLINK_ORIGIN_OVERRIDE ?? DEFAULT_ORIGIN
+    : DEFAULT_ORIGIN;
 const TIPLINK_PATH = "/i";
 
 const VERSION_DELIMITER = "_";
@@ -23,7 +23,7 @@ const getSodium = async () => {
 const kdf = async (
   fullLength: number,
   pwShort: Uint8Array,
-  salt: Uint8Array,
+  salt: Uint8Array
 ) => {
   const sodium = await getSodium();
   return sodium.crypto_pwhash(
@@ -32,7 +32,7 @@ const kdf = async (
     salt,
     sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
     sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
-    sodium.crypto_pwhash_ALG_DEFAULT,
+    sodium.crypto_pwhash_ALG_DEFAULT
   );
 };
 
@@ -140,12 +140,40 @@ import {
   getEscrowReceiverTipLink,
   PRIO_FEES_LAMPORTS,
   ESCROW_PROGRAM_ID,
+  parseEscrowIx,
+  parseEscrowTx,
+  getAllRecordedEscrowActions,
+  EscrowActionType,
+  EscrowActionDepositLamport,
+  EscrowActionWithdrawLamport,
+  EscrowActionDepositSpl,
+  EscrowActionWithdrawSpl,
+  EscrowAction,
+  RecordedEscrowAction,
+  serializeRecordedEscrowActions,
+  deserializeRecordedEscrowActions,
+  getRecordedEscrowActionsFromVault,
+  getRecordedEscrowActionsFromTx,
 } from "./escrow";
 export {
   EscrowTipLink,
   getEscrowReceiverTipLink,
   PRIO_FEES_LAMPORTS,
   ESCROW_PROGRAM_ID,
+  parseEscrowIx,
+  parseEscrowTx,
+  getAllRecordedEscrowActions,
+  EscrowActionType,
+  EscrowActionDepositLamport,
+  EscrowActionWithdrawLamport,
+  EscrowActionDepositSpl,
+  EscrowActionWithdrawSpl,
+  EscrowAction,
+  RecordedEscrowAction,
+  serializeRecordedEscrowActions,
+  deserializeRecordedEscrowActions,
+  getRecordedEscrowActionsFromVault,
+  getRecordedEscrowActionsFromTx,
 };
 
 import {

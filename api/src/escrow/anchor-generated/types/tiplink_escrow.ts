@@ -1,549 +1,609 @@
 export type TiplinkEscrow = {
-  "version": "0.1.0",
-  "name": "tiplink_escrow",
-  "instructions": [
+  version: "0.1.0";
+  name: "tiplink_escrow";
+  instructions: [
     {
-      "name": "initializeLamport",
-      "accounts": [
+      name: "initializeLamport";
+      accounts: [
         {
-          "name": "depositor",
-          "isMut": true,
-          "isSigner": true
+          name: "depositor";
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "pda",
-          "isMut": true,
-          "isSigner": false
+          name: "pda";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "treasury",
-          "isMut": true,
-          "isSigner": false
+          name: "treasury";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "tiplink",
-          "isMut": true,
-          "isSigner": false
+          name: "tiplink";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "systemProgram";
+          isMut: false;
+          isSigner: false;
         }
-      ],
-      "args": [
+      ];
+      args: [
         {
-          "name": "amount",
-          "type": "u64"
+          name: "amount";
+          type: "u64";
         },
         {
-          "name": "escrowId",
-          "type": "publicKey"
+          name: "escrowId";
+          type: "publicKey";
         }
-      ]
+      ];
     },
     {
-      "name": "withdrawLamport",
-      "accounts": [
+      name: "withdrawLamport";
+      accounts: [
         {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
+          name: "authority";
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "destination",
-          "isMut": true,
-          "isSigner": false
+          name: "destination";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "pda",
-          "isMut": true,
-          "isSigner": false
+          name: "pda";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "systemProgram";
+          isMut: false;
+          isSigner: false;
         }
-      ],
-      "args": []
+      ];
+      args: [];
     },
     {
-      "name": "initializeSpl",
-      "accounts": [
+      name: "initializeSpl";
+      accounts: [
         {
-          "name": "depositor",
-          "isMut": true,
-          "isSigner": true
+          name: "depositor";
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "depositorTa",
-          "isMut": true,
-          "isSigner": false
+          name: "depositorTa";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "pda",
-          "isMut": true,
-          "isSigner": false
+          name: "pda";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "pdaAta",
-          "isMut": true,
-          "isSigner": false
+          name: "pdaAta";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "treasury",
-          "isMut": true,
-          "isSigner": false
+          name: "treasury";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "tiplink",
-          "isMut": true,
-          "isSigner": false
+          name: "tiplink";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
+          name: "mint";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "tokenProgram";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "associatedTokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "associatedTokenProgram";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "systemProgram";
+          isMut: false;
+          isSigner: false;
         }
-      ],
-      "args": [
+      ];
+      args: [
         {
-          "name": "amount",
-          "type": "u64"
+          name: "amount";
+          type: "u64";
         },
         {
-          "name": "escrowId",
-          "type": "publicKey"
+          name: "escrowId";
+          type: "publicKey";
         }
-      ]
+      ];
     },
     {
-      "name": "withdrawSpl",
-      "accounts": [
+      name: "withdrawSpl";
+      accounts: [
         {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
+          name: "authority";
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "destination",
-          "isMut": true,
-          "isSigner": false
+          name: "destination";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "destinationAta",
-          "isMut": true,
-          "isSigner": false
+          name: "destinationAta";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "pda",
-          "isMut": true,
-          "isSigner": false
+          name: "pda";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "pdaAta",
-          "isMut": true,
-          "isSigner": false
+          name: "pdaAta";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
+          name: "mint";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "tokenProgram";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "associatedTokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "associatedTokenProgram";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "systemProgram";
+          isMut: false;
+          isSigner: false;
         }
-      ],
-      "args": []
+      ];
+      args: [];
     }
-  ],
-  "accounts": [
+  ];
+  accounts: [
     {
-      "name": "escrowLamports",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: "escrowLamports";
+      type: {
+        kind: "struct";
+        fields: [
           {
-            "name": "bump",
-            "type": "u8"
+            name: "bump";
+            type: "u8";
           },
           {
-            "name": "escrowId",
-            "type": "publicKey"
+            name: "escrowId";
+            type: "publicKey";
           },
           {
-            "name": "depositor",
-            "type": "publicKey"
+            name: "depositor";
+            type: "publicKey";
           },
           {
-            "name": "tiplink",
-            "type": "publicKey"
+            name: "tiplink";
+            type: "publicKey";
           },
           {
-            "name": "amount",
-            "type": "u64"
+            name: "amount";
+            type: "u64";
           }
-        ]
-      }
+        ];
+      };
     },
     {
-      "name": "escrowSpl",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: "escrowSpl";
+      type: {
+        kind: "struct";
+        fields: [
           {
-            "name": "bump",
-            "type": "u8"
+            name: "bump";
+            type: "u8";
           },
           {
-            "name": "escrowId",
-            "type": "publicKey"
+            name: "escrowId";
+            type: "publicKey";
           },
           {
-            "name": "depositor",
-            "type": "publicKey"
+            name: "depositor";
+            type: "publicKey";
           },
           {
-            "name": "tiplink",
-            "type": "publicKey"
+            name: "tiplink";
+            type: "publicKey";
           },
           {
-            "name": "mint",
-            "type": "publicKey"
+            name: "mint";
+            type: "publicKey";
           },
           {
-            "name": "amount",
-            "type": "u64"
+            name: "amount";
+            type: "u64";
           }
-        ]
-      }
+        ];
+      };
     }
-  ],
-  "events": [
+  ];
+  events: [
     {
-      "name": "DepositEvent",
-      "fields": [
+      name: "DepositEvent";
+      fields: [
         {
-          "name": "pda",
-          "type": "publicKey",
-          "index": false
+          name: "pda";
+          type: "publicKey";
+          index: false;
+        },
+        {
+          name: "depositor";
+          type: "publicKey";
+          index: false;
+        },
+        {
+          name: "tiplink";
+          type: "publicKey";
+          index: false;
         }
-      ]
-    }
-  ],
-  "errors": [
-    {
-      "code": 6000,
-      "name": "WrongAuthority",
-      "msg": "Wrong authority."
+      ];
     },
     {
-      "code": 6001,
-      "name": "InvalidPublicKey",
-      "msg": "Invalid public key."
+      name: "WithdrawEvent";
+      fields: [
+        {
+          name: "pda";
+          type: "publicKey";
+          index: false;
+        },
+        {
+          name: "depositor";
+          type: "publicKey";
+          index: false;
+        },
+        {
+          name: "tiplink";
+          type: "publicKey";
+          index: false;
+        }
+      ];
     }
-  ]
+  ];
+  errors: [
+    {
+      code: 6000;
+      name: "WrongAuthority";
+      msg: "Wrong authority.";
+    },
+    {
+      code: 6001;
+      name: "InvalidPublicKey";
+      msg: "Invalid public key.";
+    }
+  ];
 };
 
 export const IDL: TiplinkEscrow = {
-  "version": "0.1.0",
-  "name": "tiplink_escrow",
-  "instructions": [
+  version: "0.1.0",
+  name: "tiplink_escrow",
+  instructions: [
     {
-      "name": "initializeLamport",
-      "accounts": [
+      name: "initializeLamport",
+      accounts: [
         {
-          "name": "depositor",
-          "isMut": true,
-          "isSigner": true
+          name: "depositor",
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "pda",
-          "isMut": true,
-          "isSigner": false
+          name: "pda",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "treasury",
-          "isMut": true,
-          "isSigner": false
+          name: "treasury",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "tiplink",
-          "isMut": true,
-          "isSigner": false
+          name: "tiplink",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: "systemProgram",
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "amount",
-          "type": "u64"
+          name: "amount",
+          type: "u64",
         },
         {
-          "name": "escrowId",
-          "type": "publicKey"
-        }
-      ]
+          name: "escrowId",
+          type: "publicKey",
+        },
+      ],
     },
     {
-      "name": "withdrawLamport",
-      "accounts": [
+      name: "withdrawLamport",
+      accounts: [
         {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
+          name: "authority",
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "destination",
-          "isMut": true,
-          "isSigner": false
+          name: "destination",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "pda",
-          "isMut": true,
-          "isSigner": false
+          name: "pda",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: "systemProgram",
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": []
+      args: [],
     },
     {
-      "name": "initializeSpl",
-      "accounts": [
+      name: "initializeSpl",
+      accounts: [
         {
-          "name": "depositor",
-          "isMut": true,
-          "isSigner": true
+          name: "depositor",
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "depositorTa",
-          "isMut": true,
-          "isSigner": false
+          name: "depositorTa",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "pda",
-          "isMut": true,
-          "isSigner": false
+          name: "pda",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "pdaAta",
-          "isMut": true,
-          "isSigner": false
+          name: "pdaAta",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "treasury",
-          "isMut": true,
-          "isSigner": false
+          name: "treasury",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "tiplink",
-          "isMut": true,
-          "isSigner": false
+          name: "tiplink",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
+          name: "mint",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "tokenProgram",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "associatedTokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "associatedTokenProgram",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: "systemProgram",
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "amount",
-          "type": "u64"
+          name: "amount",
+          type: "u64",
         },
         {
-          "name": "escrowId",
-          "type": "publicKey"
-        }
-      ]
+          name: "escrowId",
+          type: "publicKey",
+        },
+      ],
     },
     {
-      "name": "withdrawSpl",
-      "accounts": [
+      name: "withdrawSpl",
+      accounts: [
         {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
+          name: "authority",
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "destination",
-          "isMut": true,
-          "isSigner": false
+          name: "destination",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "destinationAta",
-          "isMut": true,
-          "isSigner": false
+          name: "destinationAta",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "pda",
-          "isMut": true,
-          "isSigner": false
+          name: "pda",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "pdaAta",
-          "isMut": true,
-          "isSigner": false
+          name: "pdaAta",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
+          name: "mint",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "tokenProgram",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "associatedTokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "associatedTokenProgram",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: "systemProgram",
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": []
-    }
+      args: [],
+    },
   ],
-  "accounts": [
+  accounts: [
     {
-      "name": "escrowLamports",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: "escrowLamports",
+      type: {
+        kind: "struct",
+        fields: [
           {
-            "name": "bump",
-            "type": "u8"
+            name: "bump",
+            type: "u8",
           },
           {
-            "name": "escrowId",
-            "type": "publicKey"
+            name: "escrowId",
+            type: "publicKey",
           },
           {
-            "name": "depositor",
-            "type": "publicKey"
+            name: "depositor",
+            type: "publicKey",
           },
           {
-            "name": "tiplink",
-            "type": "publicKey"
+            name: "tiplink",
+            type: "publicKey",
           },
           {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      }
+            name: "amount",
+            type: "u64",
+          },
+        ],
+      },
     },
     {
-      "name": "escrowSpl",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: "escrowSpl",
+      type: {
+        kind: "struct",
+        fields: [
           {
-            "name": "bump",
-            "type": "u8"
+            name: "bump",
+            type: "u8",
           },
           {
-            "name": "escrowId",
-            "type": "publicKey"
+            name: "escrowId",
+            type: "publicKey",
           },
           {
-            "name": "depositor",
-            "type": "publicKey"
+            name: "depositor",
+            type: "publicKey",
           },
           {
-            "name": "tiplink",
-            "type": "publicKey"
+            name: "tiplink",
+            type: "publicKey",
           },
           {
-            "name": "mint",
-            "type": "publicKey"
+            name: "mint",
+            type: "publicKey",
           },
           {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      }
-    }
+            name: "amount",
+            type: "u64",
+          },
+        ],
+      },
+    },
   ],
-  "events": [
+  events: [
     {
-      "name": "DepositEvent",
-      "fields": [
+      name: "DepositEvent",
+      fields: [
         {
-          "name": "pda",
-          "type": "publicKey",
-          "index": false
-        }
-      ]
-    }
-  ],
-  "errors": [
-    {
-      "code": 6000,
-      "name": "WrongAuthority",
-      "msg": "Wrong authority."
+          name: "pda",
+          type: "publicKey",
+          index: false,
+        },
+        {
+          name: "depositor",
+          type: "publicKey",
+          index: false,
+        },
+        {
+          name: "tiplink",
+          type: "publicKey",
+          index: false,
+        },
+      ],
     },
     {
-      "code": 6001,
-      "name": "InvalidPublicKey",
-      "msg": "Invalid public key."
-    }
-  ]
+      name: "WithdrawEvent",
+      fields: [
+        {
+          name: "pda",
+          type: "publicKey",
+          index: false,
+        },
+        {
+          name: "depositor",
+          type: "publicKey",
+          index: false,
+        },
+        {
+          name: "tiplink",
+          type: "publicKey",
+          index: false,
+        },
+      ],
+    },
+  ],
+  errors: [
+    {
+      code: 6000,
+      name: "WrongAuthority",
+      msg: "Wrong authority.",
+    },
+    {
+      code: 6001,
+      name: "InvalidPublicKey",
+      msg: "Invalid public key.",
+    },
+  ],
 };

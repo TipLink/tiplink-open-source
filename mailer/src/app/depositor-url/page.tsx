@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { EscrowTipLink, getEscrowReceiverTipLink } from "@tiplink/api";
+import { EscrowTipLink } from "@tiplink/api";
 
 import useTxSender from "@/hooks/useTxSender";
 import { USDC_PUBLIC_KEY, BONK_PUBLIC_KEY } from "@/util/constants";
@@ -22,7 +22,12 @@ function EscrowWithdraw(): JSX.Element {
   const searchParams = useSearchParams();
   const { publicKey } = useWallet();
   const { connection } = useConnection();
-  const [escrowTipLink, setEscrowTipLink] = useState<EscrowTipLink>();
+  const [escrowTipLink, setEscrowTipLink] = useState<
+    EscrowTipLink | null | undefined
+  >();
+  const [receiverEmail, setReceiverEmail] = useState<
+    string | null | undefined
+  >();
   const { sendWalletTx } = useTxSender();
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -128,23 +133,30 @@ function EscrowWithdraw(): JSX.Element {
   }, [canWithdraw, connection, escrowTipLink, publicKey, sendWalletTx]);
 
   useEffect(() => {
-    async function getEscrowTipLink(): Promise<void> {
+    async function getEscrowTipLinkData(): Promise<void> {
       if (connection && pda) {
-        const receiverTipLink = await getEscrowReceiverTipLink(connection, pda);
-        if (receiverTipLink) {
-          const receiverEmail = await getReceiverEmailAction(
-            receiverTipLink.toString(),
-          );
-          const e = await EscrowTipLink.get({ connection, pda, receiverEmail });
-          setEscrowTipLink(e);
-          console.log("Escrow TipLink:", e);
+        const email = await getReceiverEmailAction(pda.toString());
+        if (email) {
+          setReceiverEmail(email);
+          const escrow = await EscrowTipLink.get({
+            connection,
+            pda,
+            receiverEmail: email,
+          });
+          setEscrowTipLink(escrow);
+          console.log("Escrow TipLink:", escrow);
         } else {
-          throw new Error("No receiver TipLink found for PDA");
+          console.error("No email found for PDA");
+          // null indicates that the TipLink was not found. There is a very rare
+          // case where the TipLink was deposited and withdrawn before the indexer
+          // indexed it.
+          setReceiverEmail(null);
+          setEscrowTipLink(null);
         }
       }
     }
 
-    getEscrowTipLink();
+    getEscrowTipLinkData();
   }, [connection, pda]);
 
   return (
@@ -153,33 +165,41 @@ function EscrowWithdraw(): JSX.Element {
         <WalletMultiButtonDynamic />
       </div>
       <div className="flex flex-col items-center gap-3 mt-8">
-        {escrowTipLink ? (
-          <>
-            <div>
-              <p className="text-gray-800 font-bold">
-                Amount:{" "}
-                {escrowTipLink.mint
-                  ? escrowTipLink.amount / 10 ** escrowTipLink.mint.decimals
-                  : escrowTipLink.amount / LAMPORTS_PER_SOL}
-              </p>
-              {mintSymbol && (
-                <p className="text-gray-800 font-bold">{`Token: ${mintSymbol}`}</p>
-              )}
-            </div>
-            <button
-              className="shadow bg-blue-500 hover:bg-blue-400 focus:shadow-outline focus:outline-none text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              type="submit"
-              disabled={isLoading || !canWithdraw}
-              onClick={handleWithdraw}
-            >
-              Withdraw
-            </button>
-            {btnMsg}
-          </>
+        {/* eslint-disable-next-line no-nested-ternary */}
+        {receiverEmail === undefined ? (
+          <p className="text-gray-800 font-bold">Loading...</p>
+        ) : receiverEmail === null ? (
+          <p className="text-gray-800 font-bold">TipLink not found.</p>
         ) : (
-          <p className="font-bold" key="connect">
-            Escrow is empty
-          </p>
+          <>
+            <p className="text-gray-800 font-bold">To: {receiverEmail}</p>
+            {escrowTipLink ? (
+              <>
+                <div>
+                  <p className="text-gray-800 font-bold">
+                    Amount:{" "}
+                    {escrowTipLink.mint
+                      ? escrowTipLink.amount / 10 ** escrowTipLink.mint.decimals
+                      : escrowTipLink.amount / LAMPORTS_PER_SOL}
+                  </p>
+                  {mintSymbol && (
+                    <p className="text-gray-800 font-bold">{`Token: ${mintSymbol}`}</p>
+                  )}
+                </div>
+                <button
+                  className="shadow bg-blue-500 hover:bg-blue-400 focus:shadow-outline focus:outline-none text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="submit"
+                  disabled={isLoading || !canWithdraw}
+                  onClick={handleWithdraw}
+                >
+                  Withdraw
+                </button>
+                {btnMsg}
+              </>
+            ) : (
+              <p className="text-gray-800 font-bold">Claimed!</p>
+            )}
+          </>
         )}
         {txMsg}
       </div>

@@ -311,7 +311,7 @@ export default function Home(): JSX.Element {
           } else {
             sig = await sendEscrowSplTipLink(USDC_PUBLIC_KEY);
           }
-        } else if (mintSymbol === "BONK") {
+        } else if (mintSymbol === "Bonk") {
           if (!isEscrow) {
             sig = await sendSplTipLink(BONK_PUBLIC_KEY);
           } else {
@@ -319,7 +319,7 @@ export default function Home(): JSX.Element {
           }
         } else {
           // For this example we'll just support SOL, USDC, and BONK
-          throw new Error("Unsupported mint");
+          throw new Error(`Unsupported mint: ${mintSymbol}`);
         }
 
         setIsSuccess(true);
