@@ -4,34 +4,13 @@ import dynamic from "next/dynamic";
 import { useState, useCallback } from "react";
 import { WalletNotConnectedError } from "@solana/wallet-adapter-base";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import {
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-} from "@solana/web3.js";
-import {
-  getMint,
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction,
-  createTransferInstruction,
-} from "@solana/spl-token";
-import { TipLink, EscrowTipLink } from "@tiplink/api";
+import { LAMPORTS_PER_SOL, PublicKey, Transaction } from "@solana/web3.js";
+import { getMint } from "@solana/spl-token";
+import { EscrowTipLink } from "@tiplink/api";
 
-import {
-  mailAction,
-  mailEscrowAction,
-  createReceiverTipLinkAction,
-} from "@/app/actions";
+import { createReceiverTipLinkAction, mailEscrowAction } from "@/app/actions";
 import useTxSender from "@/hooks/useTxSender";
-import {
-  USDC_PUBLIC_KEY,
-  BONK_PUBLIC_KEY,
-  TIPLINK_WITHDRAW_FEE_LAMPORTS,
-  DESTINATION_ATA_RENT_LAMPORTS,
-  DEST_DUST,
-} from "@/util/constants";
-import { insertPriorityFeesIxs } from "@/util/helpers";
+import { USDC_PUBLIC_KEY, BONK_PUBLIC_KEY } from "@/util/constants";
 
 const WalletMultiButtonDynamic = dynamic(
   async () =>
@@ -45,7 +24,6 @@ export default function Home(): JSX.Element {
   const [replyName, setReplyName] = useState("");
   const [replyEmail, setReplyEmail] = useState("");
   const [amount, setAmount] = useState("");
-  const [isEscrow, setIsEscrow] = useState(false);
   const [mintSymbol, setMintSymbol] = useState("SOL");
   const { connection } = useConnection();
   const { publicKey } = useWallet();
@@ -55,135 +33,6 @@ export default function Home(): JSX.Element {
   const [isFailure, setIsFailure] = useState(false);
   const [statusUrl, setStatusUrl] = useState("");
   const [statusLabel, setStatusLabel] = useState("");
-
-  const sendTipLink = useCallback(async (): Promise<string> => {
-    if (!publicKey) {
-      throw new WalletNotConnectedError();
-    }
-
-    // Create
-    const tipLink = await TipLink.create();
-
-    // Fund
-    const tx = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: tipLink.keypair.publicKey,
-        lamports:
-          parseFloat(amount) * LAMPORTS_PER_SOL +
-          TIPLINK_WITHDRAW_FEE_LAMPORTS +
-          DEST_DUST,
-      }),
-    );
-
-    // Insert priority fees
-    insertPriorityFeesIxs(tx);
-
-    // Send
-    const sig = await sendWalletTx(tx);
-
-    console.log(sig);
-
-    setStatusUrl(tipLink.url.toString());
-    setStatusLabel("TipLink");
-
-    // Mail
-    await mailAction(
-      tipLink.url.toString(),
-      toEmail,
-      toName !== "" ? toName : undefined,
-      replyEmail !== "" ? replyEmail : undefined,
-      replyName !== "" ? replyName : undefined,
-    );
-
-    return sig;
-  }, [amount, replyEmail, replyName, publicKey, toEmail, toName, sendWalletTx]);
-
-  const sendSplTipLink = useCallback(
-    async (mintAddr: PublicKey): Promise<string> => {
-      if (!publicKey) {
-        throw new WalletNotConnectedError();
-      }
-
-      // Setup mint
-      const mint = await getMint(connection, mintAddr);
-
-      // Create
-      const tipLink = await TipLink.create();
-
-      // Fund
-
-      // Transfer Lamports
-      const tx = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: tipLink.keypair.publicKey,
-          lamports:
-            TIPLINK_WITHDRAW_FEE_LAMPORTS +
-            DESTINATION_ATA_RENT_LAMPORTS +
-            DEST_DUST,
-        }),
-      );
-
-      // Create TipLink ATA
-      const tipLinkAta = await getAssociatedTokenAddress(
-        mint.address,
-        tipLink.keypair.publicKey,
-      );
-      const accountInfo = await connection.getAccountInfo(tipLinkAta);
-      if (accountInfo === null) {
-        tx.add(
-          createAssociatedTokenAccountInstruction(
-            publicKey,
-            tipLinkAta,
-            tipLink.keypair.publicKey,
-            mint.address,
-          ),
-        );
-      }
-
-      // Transfer SPL
-      const fromAta = await getAssociatedTokenAddress(mint.address, publicKey);
-      tx.add(
-        createTransferInstruction(
-          fromAta,
-          tipLinkAta,
-          publicKey,
-          parseFloat(amount) * 10 ** mint.decimals,
-        ),
-      );
-
-      // Insert priority fees
-      insertPriorityFeesIxs(tx);
-
-      // Send
-      const sig = await sendWalletTx(tx);
-
-      setStatusUrl(tipLink.url.toString());
-      setStatusLabel("TipLink");
-
-      // Mail
-      await mailAction(
-        tipLink.url.toString(),
-        toEmail,
-        toName !== "" ? toName : undefined,
-        replyEmail !== "" ? replyEmail : undefined,
-        replyName !== "" ? replyName : undefined,
-      );
-
-      return sig;
-    },
-    [
-      connection,
-      amount,
-      replyEmail,
-      replyName,
-      publicKey,
-      toEmail,
-      toName,
-      sendWalletTx,
-    ],
-  );
 
   const sendEscrowTipLink = useCallback(async (): Promise<string> => {
     if (!publicKey) {
@@ -300,23 +149,11 @@ export default function Home(): JSX.Element {
 
       try {
         if (mintSymbol === "SOL") {
-          if (!isEscrow) {
-            sig = await sendTipLink();
-          } else {
-            sig = await sendEscrowTipLink();
-          }
+          sig = await sendEscrowTipLink();
         } else if (mintSymbol === "USDC") {
-          if (!isEscrow) {
-            sig = await sendSplTipLink(USDC_PUBLIC_KEY);
-          } else {
-            sig = await sendEscrowSplTipLink(USDC_PUBLIC_KEY);
-          }
+          sig = await sendEscrowSplTipLink(USDC_PUBLIC_KEY);
         } else if (mintSymbol === "Bonk") {
-          if (!isEscrow) {
-            sig = await sendSplTipLink(BONK_PUBLIC_KEY);
-          } else {
-            sig = await sendEscrowSplTipLink(BONK_PUBLIC_KEY);
-          }
+          sig = await sendEscrowSplTipLink(BONK_PUBLIC_KEY);
         } else {
           // For this example we'll just support SOL, USDC, and BONK
           throw new Error(`Unsupported mint: ${mintSymbol}`);
@@ -335,15 +172,7 @@ export default function Home(): JSX.Element {
         setIsLoading(false);
       }
     },
-    [
-      isEscrow,
-      mintSymbol,
-      sendTipLink,
-      sendSplTipLink,
-      sendEscrowTipLink,
-      sendEscrowSplTipLink,
-      connection,
-    ],
+    [mintSymbol, sendEscrowTipLink, sendEscrowSplTipLink, connection],
   );
 
   const msgUrl =
@@ -516,24 +345,6 @@ export default function Home(): JSX.Element {
                 step={min}
                 onChange={(e) => setAmount(e.target.value)}
                 required
-              />
-            </div>
-          </div>
-          <div className="md:flex md:items-center mb-6">
-            <div className="md:w-1/3">
-              <label
-                className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4"
-                htmlFor="escrow"
-              >
-                Escrow
-              </label>
-            </div>
-            <div>
-              <input
-                id="escrow"
-                type="checkbox"
-                onChange={(e) => setIsEscrow(e.target.checked)}
-                className="cursor-pointer"
               />
             </div>
           </div>

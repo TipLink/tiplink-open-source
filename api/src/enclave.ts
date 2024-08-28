@@ -1,13 +1,13 @@
 import { PublicKey } from "@solana/web3.js";
 
-import { EscrowTipLink, TipLink } from ".";
+import { EscrowTipLink } from ".";
 import { isEmailValid } from "./email";
-import { BACKEND_URL_BASE } from "./escrow/constants";
+import { INDEXER_URL_BASE } from "./escrow/constants";
 
 const DEFAULT_ENCLAVE_ENDPOINT = "https://mailer.tiplink.io";
 const ENCLAVE_ENDPOINT =
   process !== undefined && process.env !== undefined
-    ? process.env.NEXT_PUBLIC_ENCLAVE_ENDPOINT_OVERRIDE ??
+    ? process.env.NEXT_PUBLIC_ENCLAVE_ENDPOINT_OVERRIDE ||
       DEFAULT_ENCLAVE_ENDPOINT
     : DEFAULT_ENCLAVE_ENDPOINT;
 
@@ -67,7 +67,7 @@ export async function getReceiverEmail(
 ): Promise<string> {
   // We actually no longer hit the enclave here but we'll keep in this file
   // since the enclave manages this data.
-  const endpoint = `${BACKEND_URL_BASE}/api/v1/generated-tiplinks/${publicKey.toString()}/email`;
+  const endpoint = `${INDEXER_URL_BASE}/api/v1/generated-tiplinks/${publicKey.toString()}/email`;
 
   const res = await fetch(endpoint, {
     method: "GET",
@@ -89,56 +89,6 @@ export async function getReceiverEmail(
   }: ResBody = await res.json();
 
   return email;
-}
-
-/**
- * @deprecated We are sunsetting this feature and will only be supporting
- * emailiing EscrowTipLinks. We recommend not using this feature.
- *
- * Asynchronously emails a TipLink.
- *
- * @param apiKey - The API key to be used for the request.
- * @param tipLink - The TipLink object to be sent.
- * @param toEmail - The email address of the recipient.
- * @param toName - Optional name of the recipient for the email.
- * @param replyEmail - Optional email address for the recipient to reply to.
- * @param replyName - Optional name of the sender for the email.
- * @returns A promise that resolves when the email has been sent.
- * @throws Throws an error if the HTTP request fails with a non-ok status.
- */
-export async function mail(
-  apiKey: string,
-  tipLink: TipLink,
-  toEmail: string,
-  toName?: string,
-  replyEmail?: string,
-  replyName?: string
-): Promise<void> {
-  if (!(await isEmailValid(toEmail))) {
-    throw new Error("Invalid email address");
-  }
-
-  const url = `${ENCLAVE_ENDPOINT}/api/v1/email/send`;
-
-  const body = {
-    toEmail: toEmail,
-    toName,
-    replyEmail,
-    replyName,
-    tiplinkUrl: tipLink.url.toString(),
-  };
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new Error(`HTTP error, status: ${res.status}`);
-  }
-  console.log("TipLink sent!", res);
 }
 
 /**
@@ -210,7 +160,7 @@ export async function mailEscrow(
 
   const receiverUrlOverride =
     process !== undefined && process.env !== undefined
-      ? process.env.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE
+      ? process.env.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE || undefined
       : undefined;
 
   const body = {

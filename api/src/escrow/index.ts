@@ -15,6 +15,8 @@ import {
   deserializeRecordedEscrowActions,
   getRecordedEscrowActionsFromVault,
   getRecordedEscrowActionsFromTx,
+  DepositEvent,
+  WithdrawEvent,
 } from "./escrow-parsing";
 export {
   EscrowTipLink,
@@ -35,4 +37,6 @@ export {
   deserializeRecordedEscrowActions,
   getRecordedEscrowActionsFromVault,
   getRecordedEscrowActionsFromTx,
+  DepositEvent,
+  WithdrawEvent,
 };

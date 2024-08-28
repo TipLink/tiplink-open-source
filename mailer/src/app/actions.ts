@@ -1,8 +1,6 @@
 "use server";
 
 import {
-  TipLink,
-  mail,
   mailEscrow,
   createReceiverTipLink,
   getReceiverEmail,
@@ -72,25 +70,6 @@ export async function getReceiverEmailAction(
     return email;
   }
   return undefined;
-}
-
-export async function mailAction(
-  tipLinkUrl: string,
-  toEmail: string,
-  toName?: string,
-  replyEmail?: string,
-  replyName?: string,
-): Promise<void> {
-  const tipLink = await TipLink.fromLink(tipLinkUrl);
-
-  await mail(
-    process.env.MAILER_API_KEY as string,
-    tipLink,
-    toEmail,
-    toName,
-    replyEmail,
-    replyName,
-  );
 }
 
 export async function mailEscrowAction(

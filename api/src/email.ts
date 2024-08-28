@@ -2,7 +2,7 @@ const DEFAULT_VERIFY_EMAIL_ENDPOINT =
   "https://email-verify.tiplink.tech/verify-email";
 export const VERIFY_EMAIL_ENDPOINT =
   process !== undefined && process.env !== undefined
-    ? process.env.NEXT_PUBLIC_VERIFY_EMAIL_ENDPOINT_OVERRIDE ??
+    ? process.env.NEXT_PUBLIC_VERIFY_EMAIL_ENDPOINT_OVERRIDE ||
       DEFAULT_VERIFY_EMAIL_ENDPOINT
     : DEFAULT_VERIFY_EMAIL_ENDPOINT;
 

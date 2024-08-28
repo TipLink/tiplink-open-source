@@ -19,7 +19,7 @@
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-wallets": "^0.19.23",
     "@solana/web3.js": "^1.87.6",
-    "@tiplink/api": "file:../api",
+    "@tiplink/api": "0.2.8-escrow-lite",
     "@tiplink/wallet-adapter": "^2.1.9",
     "@tiplink/wallet-adapter-react-ui": "^0.1.10",
     "concurrently": "^8.2.2",
@@ -29,6 +29,7 @@
     "react-dom": "^18"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^14.2.7",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

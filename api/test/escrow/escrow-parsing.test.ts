@@ -115,6 +115,9 @@ test("Parse and serialize regular SPL desposit SPL escrow tiplink", async () => 
     connection,
     serialized
   );
+  // Manually set mint for comparison (supply could change)
+  const deserializedAction = deserialized[0].action as EscrowActionDepositSpl;
+  deserializedAction.mint = action.mint;
   expect(deserialized).toStrictEqual(recordedActions);
 });
 
@@ -150,6 +153,9 @@ test("Parse and serialize regular claimback SPL escrow tiplink", async () => {
     connection,
     serialized
   );
+  // Manually set mint for comparison (supply could change)
+  const deserializedAction = deserialized[0].action as EscrowActionDepositSpl;
+  deserializedAction.mint = action.mint;
   expect(deserialized).toStrictEqual(recordedActions);
 });
 
@@ -238,7 +244,7 @@ test("Parse and serialize Squads deposit SPL escrow tiplink", async () => {
   expect(recordedActions[0].txSig).toBe(sig);
   expect(recordedActions[0].ixIndex).toBe(3);
   expect(recordedActions[0].innerIxIndex).toBe(0);
-  const action = recordedActions[0].action as EscrowActionDepositLamport;
+  const action = recordedActions[0].action as EscrowActionDepositSpl;
   expect(action.depositor.toBase58()).toBe(
     "4iud6muHzqkmef4CBeJNpFGJ3k6QZJ2o3MtXxGC718QC"
   );
@@ -255,5 +261,8 @@ test("Parse and serialize Squads deposit SPL escrow tiplink", async () => {
     connection,
     serialized
   );
+  // Manually set mint for comparison (supply could change)
+  const deserializedAction = deserialized[0].action as EscrowActionDepositSpl;
+  deserializedAction.mint = action.mint;
   expect(deserialized).toStrictEqual(recordedActions);
 });
