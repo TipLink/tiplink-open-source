@@ -10,9 +10,12 @@ import {
   ComputeBudgetProgram,
   Transaction,
   LAMPORTS_PER_SOL,
+  VersionedTransactionResponse,
 } from "@solana/web3.js";
 import { getMint, Mint } from "@solana/spl-token";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
+
+import { sleep } from "../../src/helpers";
 
 let connection: Connection;
 export function getConnection() {
@@ -155,4 +158,29 @@ export function insertPrioFeesIxs(
 ) {
   const ixs = getPrioFeesIxs(cuPrice, cuLimit);
   tx.instructions.unshift(...ixs);
+}
+
+export async function retryWithDelay<T>(
+  asyncFn: () => Promise<T>,
+  maxRetries = 5,
+  delay = 1000
+): Promise<T> {
+  if (maxRetries < 0) {
+    throw new Error("Max retries should be 0 or greater");
+  }
+
+  let curRetries = 0;
+  while (curRetries <= maxRetries) {
+    try {
+      return await asyncFn();
+    } catch (err) {
+      if (curRetries >= maxRetries) {
+        throw err;
+      }
+      curRetries++;
+      await sleep(delay);
+    }
+  }
+
+  throw new Error("Code should not reach this point");
 }

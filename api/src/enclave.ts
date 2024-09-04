@@ -2,12 +2,12 @@ import { PublicKey } from "@solana/web3.js";
 
 import { EscrowTipLink, TipLink } from ".";
 import { isEmailValid } from "./email";
-import { BACKEND_URL_BASE } from "./escrow/constants";
+import { INDEXER_URL_BASE } from "./escrow/constants";
 
 const DEFAULT_ENCLAVE_ENDPOINT = "https://mailer.tiplink.io";
 const ENCLAVE_ENDPOINT =
   process !== undefined && process.env !== undefined
-    ? process.env.NEXT_PUBLIC_ENCLAVE_ENDPOINT_OVERRIDE ??
+    ? process.env.NEXT_PUBLIC_ENCLAVE_ENDPOINT_OVERRIDE ||
       DEFAULT_ENCLAVE_ENDPOINT
     : DEFAULT_ENCLAVE_ENDPOINT;
 
@@ -67,7 +67,7 @@ export async function getReceiverEmail(
 ): Promise<string> {
   // We actually no longer hit the enclave here but we'll keep in this file
   // since the enclave manages this data.
-  const endpoint = `${BACKEND_URL_BASE}/api/v1/generated-tiplinks/${publicKey.toString()}/email`;
+  const endpoint = `${INDEXER_URL_BASE}/api/v1/generated-tiplinks/${publicKey.toString()}/email`;
 
   const res = await fetch(endpoint, {
     method: "GET",
@@ -103,6 +103,7 @@ export async function getReceiverEmail(
  * @param toName - Optional name of the recipient for the email.
  * @param replyEmail - Optional email address for the recipient to reply to.
  * @param replyName - Optional name of the sender for the email.
+ * @param templateName - Optional name of the template to be used for the email.
  * @returns A promise that resolves when the email has been sent.
  * @throws Throws an error if the HTTP request fails with a non-ok status.
  */
@@ -112,7 +113,8 @@ export async function mail(
   toEmail: string,
   toName?: string,
   replyEmail?: string,
-  replyName?: string
+  replyName?: string,
+  templateName?: string
 ): Promise<void> {
   if (!(await isEmailValid(toEmail))) {
     throw new Error("Invalid email address");
@@ -126,6 +128,7 @@ export async function mail(
     replyEmail,
     replyName,
     tiplinkUrl: tipLink.url.toString(),
+    templateName,
   };
   const res = await fetch(url, {
     method: "POST",
@@ -147,6 +150,7 @@ export async function mail(
  * @param toName - Optional name of the recipient for the email.
  * @param replyEmail - Optional email address for the recipient to reply to.
  * @param replyName - Optional name of the sender for the email.
+ * @param templateName - Optional name of the template to be used for the email.
  * @returns A promise that resolves when the email has been sent.
  * @throws Throws an error if the HTTP request fails with a non-ok status.
  */
@@ -156,6 +160,7 @@ interface MailEscrowWithObjArgs {
   toName?: string;
   replyEmail?: string;
   replyName?: string;
+  templateName?: string;
 }
 
 /**
@@ -166,6 +171,7 @@ interface MailEscrowWithObjArgs {
  * @param toName - Optional name of the recipient for the email.
  * @param replyEmail - Optional email address for the recipient to reply to.
  * @param replyName - Optional name of the sender for the email.
+ * @param templateName - Optional name of the template to be used for the email.
  * @returns A promise that resolves when the email has been sent.
  * @throws Throws an error if the HTTP request fails with a non-ok status.
  */
@@ -177,6 +183,7 @@ interface MailEscrowWithValsArgs {
   toName?: string;
   replyEmail?: string;
   replyName?: string;
+  templateName?: string;
 }
 
 /**
@@ -187,7 +194,7 @@ export async function mailEscrow(
 ): Promise<void> {
   // TODO: Require API key / ensure deposited
 
-  const { apiKey, toName, replyEmail, replyName } = args;
+  const { apiKey, toName, replyEmail, replyName, templateName } = args;
   const { escrowTipLink } = args as MailEscrowWithObjArgs;
   let { toEmail, pda, receiverTipLink } = args as MailEscrowWithValsArgs;
 
@@ -210,7 +217,7 @@ export async function mailEscrow(
 
   const receiverUrlOverride =
     process !== undefined && process.env !== undefined
-      ? process.env.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE
+      ? process.env.NEXT_PUBLIC_ESCROW_RECEIVER_URL_OVERRIDE || undefined
       : undefined;
 
   const body = {
@@ -221,6 +228,7 @@ export async function mailEscrow(
     pda: pda.toString(),
     tiplinkPublicKey: receiverTipLink.toString(),
     receiverUrlOverride,
+    templateName,
   };
   const res = await fetch(url, {
     method: "POST",

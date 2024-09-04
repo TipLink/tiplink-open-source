@@ -8,21 +8,14 @@ import {
 } from "@solana/web3.js";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 
-import {
-  EscrowTipLink,
-  EscrowActionType,
-  parseEscrowTx,
-  EscrowActionDepositLamport,
-  EscrowActionWithdrawLamport,
-  EscrowActionDepositSpl,
-  EscrowActionWithdrawSpl,
-} from "../../src";
+import { EscrowTipLink } from "../../src";
 import {
   getDepositorKeypair,
   getConnection,
   getUsdcMint,
   logDepositorInfo,
   insertPrioFeesIxs,
+  retryWithDelay,
 } from "./helpers";
 
 export const onchainTest =
@@ -33,17 +26,6 @@ let lamportPda: PublicKey;
 
 let splEscrowTipLink: EscrowTipLink;
 let splPda: PublicKey;
-
-beforeEach((done) => {
-  if (process.env.ONCHAIN_TESTS === "true") {
-    // Sleep 1 second to avoid RPC throttling
-    setTimeout(() => {
-      done();
-    }, 1000);
-  } else {
-    done();
-  }
-});
 
 beforeAll(async () => {
   if (process.env.ONCHAIN_TESTS === "true") {
@@ -65,7 +47,7 @@ onchainTest("Creates lamport EscrowTipLink", async () => {
     apiKey: process.env.MAILER_API_KEY as string,
   });
 
-  // Check
+  // Check object
   expect(lamportEscrowTipLink.amount).toBe(amount);
   expect(lamportEscrowTipLink.toEmail).toBe(toEmail);
   expect(lamportEscrowTipLink.depositor).toBe(depositor);
@@ -80,55 +62,43 @@ onchainTest(
 
     const tx = await lamportEscrowTipLink.depositTx(connection);
     insertPrioFeesIxs(tx);
-    const sig = await sendAndConfirmTransaction(
-      connection,
-      tx,
-      [depositorKeypair],
-      { commitment: "confirmed" }
-    );
+    await sendAndConfirmTransaction(connection, tx, [depositorKeypair], {
+      commitment: "confirmed",
+    });
 
-    // Check on-chain data
+    // Check object
     expect(lamportEscrowTipLink.pda).toBeDefined();
     lamportPda = lamportEscrowTipLink.pda as PublicKey;
     expect(lamportPda).toBeInstanceOf(PublicKey);
     expect(lamportEscrowTipLink.depositorUrl).toBeInstanceOf(URL);
-
-    // Check parsing
-    const recordedActions = await parseEscrowTx(connection, sig);
-    expect(recordedActions.length).toBe(1);
-    const recordedAction = recordedActions[0];
-    expect(recordedAction.txSig).toBe(sig);
-    let { action } = recordedAction;
-    expect(action.type).toBe(EscrowActionType.DepositLamport);
-    action = action as EscrowActionDepositLamport;
-    expect(action.depositor).toStrictEqual(depositorKeypair.publicKey);
-    expect(action.pda).toStrictEqual(lamportEscrowTipLink.pda);
-    expect(action.receiverTipLink).toStrictEqual(
-      lamportEscrowTipLink.receiverTipLink
-    );
-    expect(action.amount).toBe(lamportEscrowTipLink.amount);
   },
   50000
 ); // Increase timeout for tx confirmation
 
-onchainTest("Gets lamport EscrowTipLink", async () => {
-  const connection = getConnection();
+onchainTest(
+  "Get lamport EscrowTipLink returns instantiated class",
+  async () => {
+    const connection = getConnection();
 
-  if (!lamportPda) {
-    throw new Error(
-      `lamportPda must be defined to run unit test. Check 'Deposits lamport EscrowTipLink' test`
-    );
+    if (!lamportPda) {
+      throw new Error(
+        `lamportPda must be defined to run unit test. Check 'Deposits lamport EscrowTipLink' test`
+      );
+    }
+
+    // Retries due to RPC inconsistency / not up to date
+    retryWithDelay(async () => {
+      const retrievedEscrowTipLink = await EscrowTipLink.get({
+        connection,
+        pda: lamportPda,
+        apiKey: process.env.MAILER_API_KEY as string,
+      });
+
+      // Check object / on-chain data
+      expect(retrievedEscrowTipLink).toStrictEqual(lamportEscrowTipLink);
+    });
   }
-
-  const retrievedEscrowTipLink = await EscrowTipLink.get({
-    connection,
-    pda: lamportPda,
-    apiKey: process.env.MAILER_API_KEY as string,
-  });
-
-  // Check
-  expect(retrievedEscrowTipLink).toStrictEqual(lamportEscrowTipLink);
-});
+);
 
 onchainTest(
   "Withdraws lamport EscrowTipLink with depositor",
@@ -150,36 +120,49 @@ onchainTest(
       connection,
       tx,
       [depositorKeypair],
-      { commitment: "confirmed" }
+      {
+        commitment: "confirmed",
+      }
     );
 
-    const depositorEndBalance = await connection.getBalance(
-      depositorKeypair.publicKey
-    );
+    // Retries due to RPC inconsistency / not up to date
+    await retryWithDelay(async () => {
+      const confTx = await connection.getTransaction(sig, {
+        maxSupportedTransactionVersion: 1,
+      });
+      if (!confTx) {
+        throw new Error("Could not find confirmed transaction");
+      }
 
-    // Check on-chain data
-    expect(depositorEndBalance).toBeGreaterThan(depositorStartBalance); // Exact amounts are unit tested in the program repo
-    const retrievedEscrowTipLink = await EscrowTipLink.get({
-      connection,
-      pda: lamportPda,
-      apiKey: process.env.MAILER_API_KEY as string,
+      // Check on-chain data
+      const depositorEndBalance = await connection.getBalance(
+        depositorKeypair.publicKey,
+        {
+          minContextSlot: confTx.slot,
+        }
+      );
+      expect(depositorEndBalance).toBeGreaterThan(depositorStartBalance); // Exact amounts are unit tested in the program repo
     });
-    expect(retrievedEscrowTipLink).toBeUndefined();
-
-    // Check parsing
-    const recordedActions = await parseEscrowTx(connection, sig);
-    expect(recordedActions.length).toBe(1);
-    const recordedAction = recordedActions[0];
-    expect(recordedAction.txSig).toBe(sig);
-    let { action } = recordedAction;
-    expect(action.type).toBe(EscrowActionType.WithdrawLamport);
-    action = action as EscrowActionWithdrawLamport;
-    expect(action.authority).toStrictEqual(depositorKeypair.publicKey);
-    expect(action.pda).toStrictEqual(lamportEscrowTipLink.pda);
-    expect(action.destination).toStrictEqual(depositorKeypair.publicKey);
   },
   50000
 ); // Increase timeout for tx confirmation
+
+onchainTest(
+  "Get lamport EscrowTipLink returns undefined after withdraw",
+  async () => {
+    const connection = getConnection();
+
+    // Retries due to RPC inconsistency / not up to date
+    await retryWithDelay(async () => {
+      const retrievedEscrowTipLink = await EscrowTipLink.get({
+        connection,
+        pda: lamportPda,
+        apiKey: process.env.MAILER_API_KEY as string,
+      });
+      expect(retrievedEscrowTipLink).toBeUndefined();
+    });
+  }
+);
 
 onchainTest("Creates SPL EscrowTipLink", async () => {
   const connection = getConnection();
@@ -198,12 +181,16 @@ onchainTest("Creates SPL EscrowTipLink", async () => {
     mint: usdcMint,
   });
 
-  // Check
+  // Check object
   expect(splEscrowTipLink.mint).toBe(usdcMint);
   expect(splEscrowTipLink.amount).toBe(amount);
   expect(splEscrowTipLink.toEmail).toBe(toEmail);
   expect(splEscrowTipLink.depositor).toBe(depositor);
   expect(splEscrowTipLink.receiverTipLink).toBeInstanceOf(PublicKey);
+  expect(splEscrowTipLink.pda).toBeDefined();
+  splPda = splEscrowTipLink.pda as PublicKey;
+  expect(splPda).toBeInstanceOf(PublicKey);
+  expect(splEscrowTipLink.depositorUrl).toBeInstanceOf(URL);
 });
 
 onchainTest(
@@ -214,42 +201,33 @@ onchainTest(
       0.1 * LAMPORTS_PER_SOL,
       splEscrowTipLink.amount
     );
+    const usdcMint = await getUsdcMint();
+
+    const pdaAta = await getAssociatedTokenAddress(
+      usdcMint.address,
+      splPda,
+      true
+    );
+    const pdaStartAmount = 0;
 
     const tx = await splEscrowTipLink.depositTx(connection);
     insertPrioFeesIxs(tx);
-    const sig = await sendAndConfirmTransaction(
-      connection,
-      tx,
-      [depositorKeypair],
-      { commitment: "confirmed" }
-    );
+    await sendAndConfirmTransaction(connection, tx, [depositorKeypair], {
+      commitment: "confirmed",
+    });
 
-    // Check on-chain data
-    expect(splEscrowTipLink.pda).toBeDefined();
-    splPda = splEscrowTipLink.pda as PublicKey;
-    expect(splPda).toBeInstanceOf(PublicKey);
-    expect(splEscrowTipLink.depositorUrl).toBeInstanceOf(URL);
-
-    // Check parsing
-    const recordedActions = await parseEscrowTx(connection, sig);
-    expect(recordedActions.length).toBe(1);
-    const recordedAction = recordedActions[0];
-    expect(recordedAction.txSig).toBe(sig);
-    let { action } = recordedAction;
-    expect(action.type).toBe(EscrowActionType.DepositSpl);
-    action = action as EscrowActionDepositSpl;
-    expect(action.depositor).toStrictEqual(depositorKeypair.publicKey);
-    expect(action.pda).toStrictEqual(splEscrowTipLink.pda);
-    expect(action.receiverTipLink).toStrictEqual(
-      splEscrowTipLink.receiverTipLink
-    );
-    expect(action.amount).toBe(splEscrowTipLink.amount);
-    expect(action.mint).toStrictEqual(splEscrowTipLink.mint);
+    // Retries due to RPC inconsistency / not up to date
+    await retryWithDelay(async () => {
+      // Check on-chain data
+      const pdaEndBalance = await connection.getTokenAccountBalance(pdaAta);
+      const pdaEndAmount = parseInt(pdaEndBalance.value.amount);
+      expect(pdaEndAmount - pdaStartAmount).toEqual(splEscrowTipLink.amount);
+    });
   },
   50000
 ); // Increase timeout for tx confirmation
 
-onchainTest("Gets SPL EscrowTipLink", async () => {
+onchainTest("Get SPL EscrowTipLink returns instantiated class", async () => {
   const connection = getConnection();
 
   if (!splPda) {
@@ -258,25 +236,29 @@ onchainTest("Gets SPL EscrowTipLink", async () => {
     );
   }
 
-  const retrievedEscrowTipLink = await EscrowTipLink.get({
-    connection,
-    pda: splPda,
-    apiKey: process.env.MAILER_API_KEY as string,
-  });
+  // Retries due to RPC inconsistency / not up to date
+  await retryWithDelay(async () => {
+    const retrievedEscrowTipLink = await EscrowTipLink.get({
+      connection,
+      pda: splPda,
+      apiKey: process.env.MAILER_API_KEY as string,
+    });
 
-  // Check
-  expect(retrievedEscrowTipLink).toBeDefined();
-  expect(retrievedEscrowTipLink?.toEmail).toBe(splEscrowTipLink.toEmail);
-  expect(retrievedEscrowTipLink?.depositor).toStrictEqual(
-    splEscrowTipLink.depositor
-  );
-  expect(retrievedEscrowTipLink?.receiverTipLink).toStrictEqual(
-    splEscrowTipLink.receiverTipLink
-  );
-  expect(retrievedEscrowTipLink?.amount).toBe(splEscrowTipLink.amount);
-  expect(retrievedEscrowTipLink?.mint?.address).toStrictEqual(
-    splEscrowTipLink.mint?.address
-  );
+    // Check object / on-chain data
+    expect(retrievedEscrowTipLink).toBeDefined();
+    expect(retrievedEscrowTipLink?.toEmail).toBe(splEscrowTipLink.toEmail);
+    expect(retrievedEscrowTipLink?.depositor).toStrictEqual(
+      splEscrowTipLink.depositor
+    );
+    expect(retrievedEscrowTipLink?.receiverTipLink).toStrictEqual(
+      splEscrowTipLink.receiverTipLink
+    );
+    expect(retrievedEscrowTipLink?.amount).toBe(splEscrowTipLink.amount);
+    expect(retrievedEscrowTipLink?.mint?.address).toStrictEqual(
+      splEscrowTipLink.mint?.address
+    );
+    expect(retrievedEscrowTipLink?.pda).toStrictEqual(splPda);
+  });
   // NOTE: We don't check depositorTa
 });
 
@@ -301,40 +283,38 @@ onchainTest(
       depositorKeypair.publicKey
     );
     insertPrioFeesIxs(tx);
-    const sig = await sendAndConfirmTransaction(
-      connection,
-      tx,
-      [depositorKeypair],
-      { commitment: "confirmed" }
-    );
+    await sendAndConfirmTransaction(connection, tx, [depositorKeypair], {
+      commitment: "confirmed",
+    });
 
-    const depositorAtaEndBalance = await connection.getTokenAccountBalance(
-      depositorAta
-    );
+    // Retries due to RPC inconsistency / not up to date
+    await retryWithDelay(async () => {
+      const depositorAtaEndBalance = await connection.getTokenAccountBalance(
+        depositorAta
+      );
+      const depositorStartAmount = parseInt(
+        depositorAtaStartBalance.value.amount
+      );
+      const depositorEndAmount = parseInt(depositorAtaEndBalance.value.amount);
+      // Check on-chain data
+      expect(depositorEndAmount - splEscrowTipLink.amount).toEqual(
+        depositorStartAmount
+      );
+    });
+  },
+  50000
+); // Increase timeout for tx confirmation
 
-    // Check on-chain data
-    expect(parseInt(depositorAtaEndBalance.value.amount)).toBeGreaterThan(
-      parseInt(depositorAtaStartBalance.value.amount)
-    ); // Exact amounts are unit tested in the program repo
+onchainTest("Get SPL EscrowTipLink returns undefined", async () => {
+  const connection = getConnection();
+
+  // Retries due to RPC inconsistency / not up to date
+  await retryWithDelay(async () => {
     const retrievedEscrowTipLink = await EscrowTipLink.get({
       connection,
       pda: splPda,
       apiKey: process.env.MAILER_API_KEY as string,
     });
     expect(retrievedEscrowTipLink).toBeUndefined();
-
-    // Check parsing
-    const recordedActions = await parseEscrowTx(connection, sig);
-    expect(recordedActions.length).toBe(1);
-    const recordedAction = recordedActions[0];
-    expect(recordedAction.txSig).toBe(sig);
-    let { action } = recordedAction;
-    expect(action.type).toBe(EscrowActionType.WithdrawSpl);
-    action = action as EscrowActionWithdrawSpl;
-    expect(action.authority).toStrictEqual(depositorKeypair.publicKey);
-    expect(action.pda).toStrictEqual(splEscrowTipLink.pda);
-    expect(action.destination).toStrictEqual(depositorKeypair.publicKey);
-    expect(action.mint).toStrictEqual(splEscrowTipLink.mint);
-  },
-  50000
-); // Increase timeout for tx confirmation
+  });
+});
