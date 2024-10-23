@@ -3,14 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "preinstall": "npm run install:tiplink-api && npm run build:tiplink-api",
-    "dev": "concurrently \"npm run dev:tiplink-api\" \"next dev --experimental-https\"",
+    "preinstall": "npm run install:tiplink-util && npm run build:tiplink-util && npm run install:tiplink-api && npm run build:tiplink-api",
+    "dev": "concurrently \"npm run dev:tiplink-util\" \"npm run dev:tiplink-api\" \"next dev --experimental-https\"",
     "build": "npm run build:tiplink-api && next build",
     "start": "next start",
     "lint": "next lint",
     "install:tiplink-api": "cd ../api && npm install",
+    "install:tiplink-util": "cd ../../tiplink-util && npm install",
     "dev:tiplink-api": "cd ../api && npm run dev",
-    "build:tiplink-api": "cd ../api && npm run build"
+    "dev:tiplink-util": "cd ../../tiplink-util && npm run dev",
+    "build:tiplink-api": "cd ../api && npm run build",
+    "build:tiplink-util": "cd ../../tiplink-util && npm run build"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.29.0",
@@ -20,6 +23,7 @@
     "@solana/wallet-adapter-wallets": "^0.19.23",
     "@solana/web3.js": "^1.87.6",
     "@tiplink/api": "file:../api",
+    "@tiplink/util": "file:../../tiplink-util",
     "@tiplink/wallet-adapter": "^2.1.9",
     "@tiplink/wallet-adapter-react-ui": "^0.1.10",
     "concurrently": "^8.2.2",

@@ -170,6 +170,20 @@ interface AnalyticsSummary {
   campaign_info: Record<string, number>[];
 }
 
+// TODO better typing with prisma across repo or should we just not include all event types?
+enum EventType {
+  CREATED="CREATED",
+  ACCESSED="ACCESSED",
+  CLAIMED="CLAIMED",
+  CLAIMED_BACK="CLAIMED_BACK",
+}
+
+interface Analytic {
+  public_key: PublicKey;
+  event: EventType;
+  created_at: Date;
+}
+
 enum Rate {
   DAILY = 0,
   WEEKLY,
@@ -543,6 +557,45 @@ export class Campaign extends TipLinkApi {
     }
     // TODO include analytics? and id give whole entry object?
     return entries;
+  }
+
+  public async getAnalytic(publicKey: string): Promise<Analytic | null> {
+    const analyticsRes = await this.client.fetch(
+      `campaigns/${this.id}/analytics`,
+      { public_key: publicKey, },
+    );
+
+    let analytic: Analytic | null = null;
+    analyticsRes.forEach((res: Record<string, any>) => {
+      // TODO should we display most recent created_at in category?
+      if (res.event == "CLAIMED" || res.event == "TRANSFERED" || res.event == "RECREATED" || res.event == "WITHDRAWN") {
+        analytic = {
+          public_key: new PublicKey(res.public_key),
+          event: EventType.CLAIMED,
+          created_at: new Date(res.created_at),
+        };
+      } else if (res.event == "CLAIMED_BACK" && (!analytic || analytic.event !== EventType.CLAIMED)) {
+        analytic = {
+          public_key: new PublicKey(res.public_key),
+          event: EventType.CLAIMED_BACK,
+          created_at: new Date(res.created_at),
+        };
+      } else if (res.event == "ACCESSED" && (!analytic || (analytic.event !== EventType.CLAIMED && analytic.event !== EventType.CLAIMED_BACK))) {
+        analytic = {
+          public_key: new PublicKey(res.public_key),
+          event: EventType.ACCESSED,
+          created_at: new Date(res.created_at),
+        };
+      } else if (res.event == "CREATED" && (!analytic || (analytic.event !== EventType.CLAIMED && analytic.event !== EventType.CLAIMED_BACK && analytic.event !== EventType.ACCESSED)))  {
+        analytic = {
+          public_key: new PublicKey(res.public_key),
+          event: EventType.CREATED,
+          created_at: new Date(res.created_at),
+        };
+      }
+    });
+
+    return analytic;
   }
 
   public async getAnalytics(): Promise<AnalyticsSummary> {
@@ -983,9 +1036,31 @@ interface MintCreateParams extends Themeable {
   feeTransactionHash?: string;
 }
 
+interface MintFindParams {
+  campaign_id: string;
+}
+
 interface FeeResponse {
   publicKey: PublicKey;
   feeLamports: number;
+}
+
+interface IndividualLinkGetMintActivityParam {
+  urlSlug: string;
+  destination: never;
+}
+
+interface NonIndividualLinkGetMintActivityParam {
+  destination: string;
+  urlSlug: never;
+}
+
+type GetMintActivityParam = IndividualLinkGetMintActivityParam; // | NonIndividualLinkMintActivityParam;
+
+interface MintActivity {
+  claim_txn: string;
+  timestamp: Date;
+  destination: PublicKey;
 }
 
 class MintActions extends TipLinkApi {
@@ -1234,6 +1309,61 @@ class MintActions extends TipLinkApi {
 
     return mint;
   }
+
+  public async find(params: MintFindParams): Promise<Mint> {
+    const res = (
+      (await this.client.fetch(
+        `campaigns/${params.campaign_id}/mint/specs`,
+        { campaign_id: params.campaign_id},
+        null,
+        "GET",
+      )) as Record<string, any> // TODO type this
+    );
+
+    const mintParams: MintConstructorParams = {
+      client: this.client,
+      id: Number(res["id"]),
+      campaign_id: res["campaign_id"],
+      mintName: res["name"],
+      symbol: res["symbol"],
+      mintDescription: res["description"],
+      campaignName: res['name'],
+      collectionId: res["collection_mint"],
+      treeAddress: res["tree_address"],
+      jsonUri: res["json_uri"],
+      creatorPublicKey: new PublicKey(res["creator"]),
+      attributes: res["attributes"],
+      mintLimit: Number(res["mint_limit"]),
+      collectionUri: res["collection_uri"],
+      imageUrl: res["image"],
+      dataHost: res["imageHost"],
+      externalUrl: res["external_url"],
+      royalties: res["seller_fee_basis_points"],
+      primaryUrlSlug: res["primary_url_slug"],
+      rotatingUrlSlug: res["rotating_url_slug"],
+      useRotating: res["use_rotating"],
+      // rotating_seed_key: res["rotating_seed_key"],
+      rotatingTimeInterval: Number(res["rotating_time_interval"]),
+      totpWindow: res["totp_window"],
+      userClaimLimit: res["user_claim_limit"],
+    };
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        res,
+        "royalties_destination",
+      ) &&
+      typeof res["royalties_destination"] === "string"
+    ) {
+      mintParams["royaltiesDestination"] = new PublicKey(
+        res["royalties_destination"],
+      );
+    }
+
+    const mint = new Mint(mintParams);
+
+    return mint;
+  }
 }
 
 export class Mint extends TipLinkApi {
@@ -1310,9 +1440,37 @@ export class Mint extends TipLinkApi {
   public async getAnalytics(): Promise<AnalyticsSummary> {
     // TODO clean up response here and type
     const analyticsRes = await this.client.fetch(
-      `campaigns/${this.campaign_id}/analytics_summary`,
+      `campaigns/${this.campaign_id}/mint/analytics/summary`,
     );
     return analyticsRes;
+  }
+
+  public async getMintActivity(params: GetMintActivityParam): Promise<MintActivity | null> {
+    // TODO should this only work for non individual links?
+
+    const activitiesRes = await this.client.fetch(
+      `campaigns/${this.campaign_id}/mint/activities`,
+      { url_slug: params.urlSlug },
+    );
+
+    if (Object.prototype.hasOwnProperty.call(activitiesRes, 'activities') && activitiesRes.activities.length > 0) {
+      const activity = activitiesRes.activities[0];
+      // @ts-ignore
+      if (Object.prototype.hasOwnProperty.call(activity, 'mint')) {
+        return {
+          claim_txn: activity.mint.claim_txn,
+          timestamp: new Date(activity.mint.timestamp),
+          destination: new PublicKey(activity.mint.destination),
+        };
+      }
+      return {
+        claim_txn: activity.claim_txn,
+        timestamp: new Date(activity.timestamp),
+        destination: new PublicKey(activity.destination),
+      };
+    }
+
+    return null;
   }
 
   public async share(email: string, admin = false): Promise<boolean> {

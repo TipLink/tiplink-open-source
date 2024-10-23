@@ -80,6 +80,7 @@ export async function mailAction(
   toName?: string,
   replyEmail?: string,
   replyName?: string,
+  templateName?: string,
 ): Promise<void> {
   const tipLink = await TipLink.fromLink(tipLinkUrl);
 
@@ -90,6 +91,7 @@ export async function mailAction(
     toName,
     replyEmail,
     replyName,
+    templateName,
   );
 }
 
@@ -100,6 +102,7 @@ export async function mailEscrowAction(
   toName?: string,
   replyEmail?: string,
   replyName?: string,
+  templateName?: string,
 ): Promise<void> {
   const receiverTipLink = new PublicKey(receiverTipLinkPublicKey);
 
@@ -111,5 +114,6 @@ export async function mailEscrowAction(
     toName,
     replyEmail,
     replyName,
+    templateName,
   });
 }

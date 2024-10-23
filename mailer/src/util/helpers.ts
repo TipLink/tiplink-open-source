@@ -1,4 +1,9 @@
-import { ComputeBudgetProgram, Transaction, Connection } from "@solana/web3.js";
+import {
+  ComputeBudgetProgram,
+  Transaction,
+  Connection,
+  SignatureStatus,
+} from "@solana/web3.js";
 
 import {
   DEFAULT_COMPUTE_UNIT_PRICE,

@@ -55,6 +55,7 @@ export default function Home(): JSX.Element {
   const [isFailure, setIsFailure] = useState(false);
   const [statusUrl, setStatusUrl] = useState("");
   const [statusLabel, setStatusLabel] = useState("");
+  const [templateName, setTemplateName] = useState("");
 
   const sendTipLink = useCallback(async (): Promise<string> => {
     if (!publicKey) {
@@ -94,10 +95,20 @@ export default function Home(): JSX.Element {
       toName !== "" ? toName : undefined,
       replyEmail !== "" ? replyEmail : undefined,
       replyName !== "" ? replyName : undefined,
+      templateName !== "" ? templateName : undefined,
     );
 
     return sig;
-  }, [amount, replyEmail, replyName, publicKey, toEmail, toName, sendWalletTx]);
+  }, [
+    amount,
+    replyEmail,
+    replyName,
+    publicKey,
+    toEmail,
+    toName,
+    sendWalletTx,
+    templateName,
+  ]);
 
   const sendSplTipLink = useCallback(
     async (mintAddr: PublicKey): Promise<string> => {
@@ -169,6 +180,7 @@ export default function Home(): JSX.Element {
         toName !== "" ? toName : undefined,
         replyEmail !== "" ? replyEmail : undefined,
         replyName !== "" ? replyName : undefined,
+        templateName !== "" ? templateName : undefined,
       );
 
       return sig;
@@ -182,6 +194,7 @@ export default function Home(): JSX.Element {
       toEmail,
       toName,
       sendWalletTx,
+      templateName,
     ],
   );
 
@@ -218,6 +231,7 @@ export default function Home(): JSX.Element {
       toName !== "" ? toName : undefined,
       replyEmail !== "" ? replyEmail : undefined,
       replyName !== "" ? replyName : undefined,
+      templateName !== "" ? templateName : undefined,
     );
 
     return sig;
@@ -230,6 +244,7 @@ export default function Home(): JSX.Element {
     replyName,
     sendWalletTx,
     connection,
+    templateName,
   ]);
 
   const sendEscrowSplTipLink = useCallback(
@@ -270,6 +285,7 @@ export default function Home(): JSX.Element {
         toName !== "" ? toName : undefined,
         replyEmail !== "" ? replyEmail : undefined,
         replyName !== "" ? replyName : undefined,
+        templateName !== "" ? templateName : undefined,
       );
 
       return sig;
@@ -283,6 +299,7 @@ export default function Home(): JSX.Element {
       replyEmail,
       replyName,
       sendWalletTx,
+      templateName,
     ],
   );
 
@@ -516,6 +533,24 @@ export default function Home(): JSX.Element {
                 step={min}
                 onChange={(e) => setAmount(e.target.value)}
                 required
+              />
+            </div>
+          </div>
+          <div className="md:flex md:items-center mb-6">
+            <div className="md:w-1/3">
+              <label
+                className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4"
+                htmlFor="reply-name"
+              >
+                Template Name
+              </label>
+            </div>
+            <div className="md:w-2/3">
+              <input
+                className="bg-gray-200 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-500"
+                id="reply-name"
+                type="text"
+                onChange={(e) => setTemplateName(e.target.value)}
               />
             </div>
           </div>

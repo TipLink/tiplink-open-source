@@ -19,52 +19,12 @@ import { getMint, Mint } from "@solana/spl-token";
 
 import { TiplinkEscrow, IDL } from "./anchor-generated/types/tiplink_escrow"; // This is different in anchor program repo
 import { sleep } from "../helpers";
-import { BACKEND_URL_BASE } from "./constants";
+import { INDEXER_URL_BASE } from "./constants";
 
-// TODO for Events
-//  1. Differentiate between lamport / SPL
-//  2. Add more helpful data
-//  3. Convert to CPI event once client parsing utilities are available
-
+// These should not be used for indexing due to unreliability of Anchor events
+// Perhaps this should be removed
 export type DepositEvent = IdlEvents<TiplinkEscrow>["DepositEvent"];
-
 export type WithdrawEvent = IdlEvents<TiplinkEscrow>["WithdrawEvent"];
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function asDepositEvent(e: any): DepositEvent | undefined {
-  try {
-    if (
-      e.name === "DepositEvent" &&
-      e.data &&
-      e.data.pda instanceof PublicKey &&
-      e.data.depositor instanceof PublicKey &&
-      e.data.tiplink instanceof PublicKey
-    ) {
-      return e.data;
-    }
-  } catch {
-    // Do nothing
-  }
-  return undefined;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function asWithdrawEvent(e: any): WithdrawEvent | undefined {
-  try {
-    if (
-      e.name === "WithdrawEvent" &&
-      e.data &&
-      e.data.pda instanceof PublicKey &&
-      e.data.depositor instanceof PublicKey &&
-      e.data.tiplink instanceof PublicKey
-    ) {
-      return e.data;
-    }
-  } catch {
-    // Do nothing
-  }
-  return undefined;
-}
 
 export enum EscrowActionType {
   DepositLamport = "DepositLamport",
@@ -357,7 +317,7 @@ export async function parseEscrowTx(
   const txRes = await connection.getTransaction(sig, {
     maxSupportedTransactionVersion: 1,
   });
-  if (!txRes) {
+  if (!txRes || txRes.meta?.err) {
     return [];
   }
 
@@ -447,11 +407,11 @@ export async function getAllRecordedEscrowActions(
 ): Promise<RecordedEscrowAction[]> {
   // Limit set to 1,000
   const totalSigInfos: ConfirmedSignatureInfo[] = [];
-  let sigInfos = await connection.getConfirmedSignaturesForAddress2(pda);
+  let sigInfos = await connection.getSignaturesForAddress(pda);
   while (sigInfos.length > 0) {
     totalSigInfos.push(...sigInfos);
     // eslint-disable-next-line no-await-in-loop
-    sigInfos = await connection.getConfirmedSignaturesForAddress2(pda, {
+    sigInfos = await connection.getSignaturesForAddress(pda, {
       before: sigInfos[sigInfos.length - 1].signature,
     });
   }
@@ -495,7 +455,7 @@ export async function getRecordedEscrowActionsFromVault(
   pda: PublicKey
 ): Promise<RecordedEscrowAction[]> {
   const res = await fetch(
-    `${BACKEND_URL_BASE}/api/v1/escrow/${pda.toBase58()}`
+    `${INDEXER_URL_BASE}/api/v1/escrow/${pda.toBase58()}`
   );
   const json = await res.json();
   const { data } = json;
@@ -510,7 +470,7 @@ export async function getRecordedEscrowActionsFromTx(
   connection: Connection,
   sig: string
 ): Promise<RecordedEscrowAction[]> {
-  const res = await fetch(`${BACKEND_URL_BASE}/api/v1/transaction/${sig}`);
+  const res = await fetch(`${INDEXER_URL_BASE}/api/v1/transaction/${sig}`);
   const json = await res.json();
   const { data } = json;
   const serializedRecordedActions = data.recordedEscrowActions;

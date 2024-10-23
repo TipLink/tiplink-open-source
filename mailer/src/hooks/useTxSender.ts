@@ -5,6 +5,7 @@ import {
   Keypair,
 } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { confirmTx } from "@tiplink/util";
 
 export default function useTxSender(): {
   sendWalletTx: (tx: Transaction) => Promise<string>;
@@ -16,20 +17,8 @@ export default function useTxSender(): {
   const sendWalletTx = useCallback(
     async (tx: Transaction) => {
       try {
-        const {
-          value: { blockhash, lastValidBlockHeight },
-        } = await connection.getLatestBlockhashAndContext();
-
         const sig = await sendTransaction(tx, connection);
-
-        await connection.confirmTransaction(
-          {
-            signature: sig,
-            blockhash,
-            lastValidBlockHeight,
-          },
-          "confirmed",
-        );
+        await confirmTx(connection, sig);
 
         console.log("sig:", sig);
         return sig;

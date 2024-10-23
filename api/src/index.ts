@@ -154,6 +154,8 @@ import {
   deserializeRecordedEscrowActions,
   getRecordedEscrowActionsFromVault,
   getRecordedEscrowActionsFromTx,
+  DepositEvent,
+  WithdrawEvent,
 } from "./escrow";
 export {
   EscrowTipLink,
@@ -174,6 +176,8 @@ export {
   deserializeRecordedEscrowActions,
   getRecordedEscrowActionsFromVault,
   getRecordedEscrowActionsFromTx,
+  DepositEvent,
+  WithdrawEvent,
 };
 
 import {
